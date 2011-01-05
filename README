@@ -23,15 +23,19 @@ The most typical scenario is:
   to a RADIUS group
 
 In the configuration files, the administrator can specify
-arbitrary SQL queries, so this plugin may be used even outside RADIUS
+arbitrary SQL queries, so this plugin may be used even outside RADIUS.
+
+Supported databases: the same as SOCI C++ library[2].
 
 This project is in its very early stage of development.
 
-SCM policy: only upstream Subversion trunk[2] is (manually) imported into
+SCM policy: only upstream Subversion trunk[3] is (manually) imported into
 git master. git-svn has not been used for a number of reasons... Other git
 branches will contain original contributions. Patches will be formatted
 and sent to the upstream authors.
 
 -- 
 [1] http://dansguardian.org/
-[2] https://dansguardian.svn.sourceforge.net/svnroot/dansguardian/trunk
+[2] http://soci.sourceforge.net/
+[3] https://dansguardian.svn.sourceforge.net/svnroot/dansguardian/trunk
+
