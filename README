@@ -1,0 +1,37 @@
+This is a DansGuardian[1] fork created to develop a SQL-based AuthPlugin.
+
+Why such a thing? For example, to get captive portal integration. 
+More technically: to implement a RADIUS-based mapping to
+DansGuardian flter groups. 
+
+It's designed to work even in a transparent proxy setup.
+
+The most typical scenario is:
+
+* User authenticates into a ChilliSpot/CoovaChilli captive portal, 
+  or a 802.1X network
+
+* NAS proxies web traffic to DansGuardian 
+
+* Filter groups MUST work even with trasparent proxy: so the user's 
+  IP address may be the only information available
+
+* The SQL AuthPlugin queries the RADIUS accounting database to know
+  which RADIUS user (currently online) is using the given IP 
+
+* Optionally the "radusergroup" table is queried to associate RADIUS user
+  to a RADIUS group
+
+In the configuration files, the administrator can specify
+arbitrary SQL queries, so this plugin may be used even outside RADIUS
+
+This project is in its very early stage of development.
+
+SCM policy: only upstream Subversion trunk[2] is (manually) imported into
+git master. git-svn has not been used for a number of reasons... Other git
+branches will contain original contributions. Patches will be formatted
+and sent to the upstream authors.
+
+-- 
+[1] http://dansguardian.org/
+[2] https://dansguardian.svn.sourceforge.net/svnroot/dansguardian/trunk
