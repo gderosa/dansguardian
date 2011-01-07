@@ -72,27 +72,31 @@ if ! test "x$staticzlib" = "xtrue"; then
 fi
 
 # SOCI -- sql C++ library
-#AC_MSG_CHECKING(for SOCI)
-LIBS="-lsoci_core ${LIBS}"
-AC_ARG_WITH(soci,
-	[AC_HELP_STRING([--with-soci@<:@=NONE@:>@], [non-standard search path for SOCI library])],
-	[ # check for header & func (in library) in given prefix
-  	CPPFLAGS="${CPPFLAGS} -I${withval}/include"
-    LIBS="-L${withval}/lib -lsoci_core ${LIBS}"
+AC_ARG_ENABLE(soci, 
+  [AC_HELP_STRING([--enable-soci@<:@=no@:>@], [Enable support for the SOCI sql library])],
+  [              
+    LIBS="-lsoci_core ${LIBS}"
+    AC_ARG_WITH(soci,
+      [AC_HELP_STRING([--with-soci@<:@=NONE@:>@], [non-standard search path for SOCI library])],
+      [ # check for header & func (in library) in given prefix
+        CPPFLAGS="${CPPFLAGS} -I${withval}/include"
+        LIBS="-L${withval}/lib -lsoci_core ${LIBS}"
+      ]
+    ) 
+    AC_CHECK_HEADERS([soci/soci.h])
+    AC_MSG_CHECKING(for soci::session)
+    AC_COMPILE_IFELSE(
+      [AC_LANG_PROGRAM(
+        [#include <soci/soci.h>],
+        [soci::session sql]
+      )],
+      [
+       HAVE_SOCI=1
+       AC_MSG_RESULT(yes)
+      ],
+      [AC_MSG_ERROR([Failed to link libsoci!])]
+    )
   ]
-) 
-AC_CHECK_HEADERS([soci/soci.h])
-AC_MSG_CHECKING(for soci::session)
-AC_COMPILE_IFELSE(
-  [AC_LANG_PROGRAM(
-    [#include <soci/soci.h>],
-    [soci::session sql]
-  )],
-  [
-   HAVE_SOCI=1
-   AC_MSG_RESULT(yes)
-  ],
-  [AC_MSG_ERROR([Failed to link libsoci!])]
 )
 
 
