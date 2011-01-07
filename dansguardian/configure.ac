@@ -75,7 +75,7 @@ fi
 #AC_MSG_CHECKING(for SOCI)
 LIBS="-lsoci_core ${LIBS}"
 AC_ARG_WITH(soci,
-	[AC_HELP_STRING([--with-soci@<:@=NONE@:>@], ["non-standard search path for SOCI library"])],
+	[AC_HELP_STRING([--with-soci@<:@=NONE@:>@], [non-standard search path for SOCI library])],
 	[ # check for header & func (in library) in given prefix
   	CPPFLAGS="${CPPFLAGS} -I${withval}/include"
     LIBS="-L${withval}/lib -lsoci_core ${LIBS}"
