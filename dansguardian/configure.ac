@@ -72,7 +72,7 @@ if ! test "x$staticzlib" = "xtrue"; then
 fi
 
 AC_DEFUN_ONCE([CONFIGURE_SOCI],[
-  [              
+  [            
     LIBS="-lsoci_core ${LIBS}"
     AC_ARG_WITH(soci,
       [AC_HELP_STRING([--with-soci@<:@=NONE@:>@], [non-standard search path for SOCI library])],
@@ -578,7 +578,7 @@ AC_SUBST(NTLMSUPPORT)
 AC_MSG_CHECKING(for SQL auth support)
 AC_ARG_ENABLE(
   sqlauth,
-  [AC_HELP_STRING([--enable-sqlauth@<:@=no@:>@], [Enable support for the SQL auth plugin])],
+  [AC_HELP_STRING([--enable-sqlauth@<:@=no@:>@], [Enable support for the SQL auth plugin, requires --enable-soci])],
   [
     if test "x$enableval" = "xno"; then
   	  AC_MSG_RESULT(no)
