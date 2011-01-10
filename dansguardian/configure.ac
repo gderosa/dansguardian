@@ -71,9 +71,7 @@ if ! test "x$staticzlib" = "xtrue"; then
 	AC_CHECK_LIB(z, gzdopen, [AC_MSG_RESULT(yes)], [AC_MSG_ERROR([no zlib!])])
 fi
 
-# SOCI -- sql C++ library
-AC_ARG_ENABLE(soci, 
-  [AC_HELP_STRING([--enable-soci@<:@=no@:>@], [Enable support for the SOCI sql library])],
+AC_DEFUN_ONCE([CONFIGURE_SOCI],[
   [              
     LIBS="-lsoci_core ${LIBS}"
     AC_ARG_WITH(soci,
@@ -97,6 +95,11 @@ AC_ARG_ENABLE(soci,
       [AC_MSG_ERROR([Failed to link libsoci!])]
     )
   ]
+])
+
+AC_ARG_ENABLE(soci, 
+  [AC_HELP_STRING([--enable-soci@<:@=no@:>@], [Enable support for the SOCI sql library])],
+  CONFIGURE_SOCI
 )
 
 
