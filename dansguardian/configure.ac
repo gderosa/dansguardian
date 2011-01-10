@@ -573,6 +573,33 @@ fi],
 AM_CONDITIONAL(ENABLE_NTLM, test "x$ntlm" = "xtrue")
 AC_SUBST(NTLMSUPPORT)
 
+
+# asking user if they want SQLAUTH auth support
+AC_MSG_CHECKING(for SQL auth support)
+AC_ARG_ENABLE(
+  sqlauth,
+  [AC_HELP_STRING([--enable-sqlauth@<:@=no@:>@], [Enable support for the SQL auth plugin])],
+  [
+    if test "x$enableval" = "xno"; then
+  	  AC_MSG_RESULT(no)
+	    sqlauth=false
+	    SQLAUTHSUPPORT="!! Not compiled !! "
+    else
+	    AC_MSG_RESULT(yes)
+	    sqlauth=true
+    	SQLAUTHSUPPORT=""
+	    AC_DEFINE([ENABLE_SQLAUTH],[],[Define to enable SQL auth plugin])
+    fi 
+  ],
+  [
+    AC_MSG_RESULT(no)
+  ]
+)
+
+
+
+
+
 # asking the user if they want email notifications
 AC_MSG_CHECKING(for email notification support)
 AC_ARG_ENABLE(
