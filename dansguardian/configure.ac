@@ -588,7 +588,7 @@ AC_ARG_ENABLE(
 	    AC_MSG_RESULT(yes)
 	    sqlauth=true
     	SQLAUTHSUPPORT=""
-	    AC_DEFINE([ENABLE_SQLAUTH],[],[Define to enable SQL auth plugin])
+	    AC_DEFINE([ENABLE_SQLAUTH],[1],[Define to enable SQL auth plugin])
     fi 
   ],
   [
@@ -681,6 +681,7 @@ AC_CONFIG_FILES([Makefile
 	        configs/contentscanners/commandlinescan.conf
 		configs/authplugins/Makefile
 		configs/authplugins/ip.conf
+    configs/authplugins/sql.conf
 		configs/lists/authplugins/Makefile
 		configs/lists/downloadmanagers/Makefile
                 src/Makefile

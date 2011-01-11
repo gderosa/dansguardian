@@ -15,7 +15,7 @@ FLISTS += sql.conf
 endif
 
 EXTRA_DIST = proxy-basic.conf ident.conf ip.conf.in proxy-ntlm.conf \
-	     proxy-digest.conf sql.conf
+	     proxy-digest.conf sql.conf.in
 
 install-data-local: 
 	$(mkinstalldirs) $(DESTDIR)$(DGDATADIR) && \
