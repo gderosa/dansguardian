@@ -10,8 +10,12 @@ if ENABLE_NTLM
 FLISTS += proxy-ntlm.conf
 endif
 
+if ENABLE_SQLAUTH
+FLISTS += sql.conf
+endif
+
 EXTRA_DIST = proxy-basic.conf ident.conf ip.conf.in proxy-ntlm.conf \
-	     proxy-digest.conf
+	     proxy-digest.conf sql.conf
 
 install-data-local: 
 	$(mkinstalldirs) $(DESTDIR)$(DGDATADIR) && \

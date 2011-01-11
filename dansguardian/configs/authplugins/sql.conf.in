@@ -1,0 +1,23 @@
+# IP-based auth plugin
+#
+# Maps client IPs to filter groups.
+# If "usexforwardedfor" is enabled, grabs the IP from the X-Forwarded-For
+# header, if available.
+
+plugname = 'sql'
+
+# ipgroups file
+# List file assigning IP addresses, subnets and ranges to filter groups
+sqlauthgroups = '@DGCONFDIR@/lists/authplugins/sqlgroups'
+
+sqlauthdb     = 'mysql'
+sqlauthdbhost = 'localhost'
+sqlauthdbname = 'radius'
+sqlauthdbuser = 'radius'
+sqlauthdbpass = 'radius'
+
+# In case of conflict the most recent entry can be chosen
+sqlauthipuserquery = 'SELECT `username` FROM `radacct` WHERE `acctstoptime` IS NULL AND `framedipaddress` = "-IPADDRESS-" ORDER BY `acctstarttime` DESC'
+
+# In case of conflict the highest priority result can be chosen
+sqlauthusergroupquery = 'SELECT `groupname` FROM `radusergroup` WHERE `username` = "-USERNAME-" ORDER BY `priority` ASC'

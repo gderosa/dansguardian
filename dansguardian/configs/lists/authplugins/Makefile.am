@@ -6,6 +6,10 @@ SUBDIRS = .
 
 WLISTS = ipgroups
 
+if ENABLE_SQLAUTH
+WLISTS += sqlgroups
+endif
+
 EXTRA_DIST = $(WLISTS)
 
 install-data-local: 
