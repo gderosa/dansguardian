@@ -597,6 +597,9 @@ AC_ARG_ENABLE(
   	SQLAUTHSUPPORT="!! Not compiled !! "   
   ]
 )
+AM_CONDITIONAL(ENABLE_SQLAUTH, test "x$sqlauth" = "xtrue")
+AC_SUBST(SQLAUTHSUPPORT)
+
 
 
 # asking the user if they want email notifications
