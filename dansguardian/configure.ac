@@ -593,11 +593,10 @@ AC_ARG_ENABLE(
   ],
   [
     AC_MSG_RESULT(no)
+  	sqlauth=false
+  	SQLAUTHSUPPORT="!! Not compiled !! "   
   ]
 )
-
-
-
 
 
 # asking the user if they want email notifications
