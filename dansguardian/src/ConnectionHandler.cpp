@@ -1476,7 +1476,7 @@ void ConnectionHandler::handleConnection(Socket &peerconn, String &ip)
 														//if its not clean / we errored then treat it as infected
 														else if (csrc != DGCS_CLEAN && csrc != DGCS_WARNING) {
 															if (csrc < 0) {
-																syslog(LOG_ERR, "Unknown return code from content scanner: %d", csrc);
+																syslog(LOG_ERR, "Return code from content scanner: %d", csrc);
 															}
 															else {
 																syslog(LOG_ERR, "scanFile/Memory returned error: %d", csrc);
