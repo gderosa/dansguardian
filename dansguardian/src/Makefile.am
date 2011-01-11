@@ -58,6 +58,12 @@ else
 NTLMAUTH_SOURCE =
 endif
 
+if ENABLE_SQLAUTH
+SQLAUTH_SOURCE = authplugins/sql.cpp
+else
+SQLAUTH_SOURCE =
+endif
+
 sbin_PROGRAMS = dansguardian 
 
 dansguardian_CXXFLAGS = $(PCRE_CFLAGS) $(AM_CXXFLAGS)
@@ -107,4 +113,5 @@ dansguardian_SOURCES = String.cpp String.hpp \
 		       $(DEFAULTDM_SOURCE) $(FANCYDM_SOURCE) \
 		       $(TRICKLEDM_SOURCE) $(PROXYAUTH_SOURCE) \
 		       $(IDENTAUTH_SOURCE) $(IPAUTH_SOURCE) \
-		       $(NTLMAUTH_SOURCE) $(DIGESTAUTH_SOURCE)
+		       $(NTLMAUTH_SOURCE) $(DIGESTAUTH_SOURCE) \
+					 $(SQLAUTH_SOURCE)
