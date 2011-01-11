@@ -112,11 +112,20 @@ int sqlauthinstance::init(void* args) {
 // NOUSER stops ConnectionHandler from querying subsequent plugins.
 int sqlauthinstance::identify(Socket& peercon, Socket& proxycon, HTTPHeader &h, std::string &string)
 {
-	// we don't get usernames out of this plugin, just a filter group
-	// for now, use the IP as the username
-	
-	string = "1.2.3.4";
-	return DGAUTH_OK;
+  // we don't get usernames out of this plugin, just a filter group
+  // for now, use the IP as the username
+
+  if (o.use_xforwardedfor) {
+    // grab the X-Forwarded-For IP if available
+    string = h.getXForwardedForIP();
+    // otherwise, grab the IP directly from the client connection
+    if (string.length() == 0)
+      string = peercon.getPeerIP();
+  } else {
+    string = peercon.getPeerIP();
+  }
+  return DGAUTH_OK;
+
 }
 
 int sqlauthinstance::determineGroup(std::string &user, int &fg)
