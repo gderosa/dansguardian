@@ -1,13 +1,12 @@
-# IP-based auth plugin
+# IP+SQL auth plugin
 #
-# Maps client IPs to filter groups.
-# If "usexforwardedfor" is enabled, grabs the IP from the X-Forwarded-For
-# header, if available.
+# Maps client IPs to filter groups according to the result of an SQL query.
 
-plugname = 'sql'
+plugname = 'sqlauth'
 
 # ipgroups file
-# List file assigning IP addresses, subnets and ranges to filter groups
+# List file assigning RADIUS groups to filter groups
+# (or more generally, the result of sqlauthusergroupquery to filter groups)
 sqlauthgroups = '@DGCONFDIR@/lists/authplugins/sqlgroups'
 
 sqlauthdb     = 'mysql'

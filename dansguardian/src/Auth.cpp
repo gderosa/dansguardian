@@ -46,6 +46,10 @@ extern authcreate_t ipcreate;
 extern authcreate_t ntlmcreate;
 #endif
 
+#ifdef ENABLE_SQLAUTH
+extern authcreate_t sqlauthcreate;
+#endif
+
 // IMPLEMENTATION
 
 AuthPlugin::AuthPlugin(ConfigVar &definition):is_connection_based(false), needs_proxy_query(false)
@@ -164,6 +168,16 @@ AuthPlugin* auth_plugin_load(const char *pluginConfigPath)
 		return ntlmcreate(cv);
 	}
 #endif
+
+#ifdef ENABLE_SQLAUTH
+	if (plugname == "sqlauth") {
+#ifdef DGDEBUG
+		std::cout << "Enabling IP/SQL auth plugin" << std::endl;
+#endif
+		return sqlauthcreate(cv);
+	}
+#endif
+
 
 	if (!is_daemonised) {
 		std::cerr << "Unable to load plugin: " << pluginConfigPath << std::endl;
