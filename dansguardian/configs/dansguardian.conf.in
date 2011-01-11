@@ -491,6 +491,7 @@ contentscanexceptions = off
 #@NTLMSUPPORT@authplugin = '@DGCONFDIR@/authplugins/proxy-ntlm.conf'
 #authplugin = '@DGCONFDIR@/authplugins/ident.conf'
 #authplugin = '@DGCONFDIR@/authplugins/ip.conf'
+#@SQLAUTHSUPPORT@authplugin = '@DGCONFDIR@/authplugins/sql.conf'
 
 
 
