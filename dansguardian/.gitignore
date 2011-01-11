@@ -4,4 +4,5 @@ config.sub
 depcomp
 dgconfig.h.in
 install-sh
-
+Makefile.in
+configure
