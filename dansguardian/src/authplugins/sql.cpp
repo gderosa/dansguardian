@@ -24,8 +24,8 @@
 #endif
 
 #include "../Auth.hpp"
-#include "../RegExp.hpp"
 #include "../OptionContainer.hpp"
+#include "../String.hpp"
 
 #include <syslog.h>
 #include <algorithm>
@@ -102,21 +102,26 @@ int sqlauthinstance::init(void* args) {
 // NOUSER stops ConnectionHandler from querying subsequent plugins.
 int sqlauthinstance::identify(Socket& peercon, Socket& proxycon, HTTPHeader &h, std::string &string)
 {
-  // we don't get usernames out of this plugin, just a filter group
-  // for now, use the IP as the username
+  std::string ipstring;
 
   if (o.use_xforwardedfor) {
     // grab the X-Forwarded-For IP if available
-    string = h.getXForwardedForIP();
+    ipstring = h.getXForwardedForIP();
     // otherwise, grab the IP directly from the client connection
-    if (string.length() == 0)
-      string = peercon.getPeerIP();
+    if (ipstring.length() == 0)
+      ipstring = peercon.getPeerIP();
   } else {
-    string = peercon.getPeerIP();
+    ipstring = peercon.getPeerIP();
   }
+  
+  String sql_query( cv["sqlauthipuserquery"] );
+  sql_query.replaceall("-IPADDRESS-", ipstring.c_str());
+
 #ifdef DGDEBUG
-  std::cout << "sqlauthipuserquery = " << cv["sqlauthipuserquery"] << std::endl;
+  std::cout << "sqlauthipuserquery = " << sql_query << std::endl;
 #endif
+
+  string = "sql_username";
   return DGAUTH_OK;
 }
 
