@@ -61,7 +61,7 @@ public:
 	int init(void* args);
 	int quit();
 private:
-	int readConf(const char *filename);
+  soci::session sql;
 };
 
 
@@ -94,7 +94,27 @@ int sqlauthinstance::quit() {
 
 // plugin init 
 int sqlauthinstance::init(void* args) {
-  return 0;
+  char connection_string[1024];
+  sprintf(connection_string, "host='%s' db='%s' user='%s' password='%s'", 
+    cv["sqlauthdbhost"].c_str(), 
+    cv["sqlauthdbname"].c_str(), 
+    cv["sqlauthdbuser"].c_str(), 
+    cv["sqlauthdbpass"].c_str()
+  );
+#ifdef DGDEBUG
+  printf("sqlauth: %s connection string: %s\n", 
+      cv["sqlauthdb"].c_str(), connection_string);
+#endif
+  try {
+    sql.open(cv["sqlauthdb"], connection_string);
+    return 0;
+  }
+  catch (std::exception const &e) {
+    if (!is_daemonised) 
+      std::cerr << "sqlauth (" << cv["sqlauthdb"] << "): " << e.what() << '\n';
+    syslog(LOG_ERR, e.what());
+    return 1;
+  }
 }
 
 // filter group determination
