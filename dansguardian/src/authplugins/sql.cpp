@@ -1,7 +1,7 @@
 // IP SQL auth plugin
 
-//Please refer to http://dansguardian.org/?page=copyright2
-//for the license for this code.
+// Please refer to http://dansguardian.org/?page=copyright2
+// for the license for this code.
 
 //  This program is free software; you can redistribute it and/or modify
 //  it under the terms of the GNU General Public License as published by
@@ -10,12 +10,12 @@
 //
 //  This program is distributed in the hope that it will be useful,
 //  but WITHOUT ANY WARRANTY; without even the implied warranty of
-//  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+//  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.	See the
 //  GNU General Public License for more details.
 //
 //  You should have received a copy of the GNU General Public License
 //  along with this program; if not, write to the Free Software
-//  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+//  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA	02111-1307	USA
 
 
 // INCLUDES
@@ -41,8 +41,6 @@
 extern bool is_daemonised;
 extern OptionContainer o;
 
-
-
 // class name is relevant!
 class sqlauthinstance:public AuthPlugin
 {
@@ -61,7 +59,7 @@ public:
 	int init(void* args);
 	int quit();
 private:
-  soci::session sql;
+	soci::session sql;
 };
 
 
@@ -85,36 +83,36 @@ AuthPlugin *sqlauthcreate(ConfigVar & definition)
 // plugin quit - clear IP, subnet & range lists
 int sqlauthinstance::quit() {
 	/*
-  iplist.clear();
+	iplist.clear();
 	ipsubnetlist.clear();
 	iprangelist.clear();
-  */
+	*/
 	return 0;
 }
 
 // plugin init 
 int sqlauthinstance::init(void* args) {
-  char connection_string[1024];
-  sprintf(connection_string, "host='%s' db='%s' user='%s' password='%s'", 
-    cv["sqlauthdbhost"].c_str(), 
-    cv["sqlauthdbname"].c_str(), 
-    cv["sqlauthdbuser"].c_str(), 
-    cv["sqlauthdbpass"].c_str()
-  );
+	char connection_string[1024];
+	sprintf(connection_string, "host='%s' db='%s' user='%s' password='%s'", 
+		cv["sqlauthdbhost"].c_str(), 
+		cv["sqlauthdbname"].c_str(), 
+		cv["sqlauthdbuser"].c_str(), 
+		cv["sqlauthdbpass"].c_str()
+	);
 #ifdef DGDEBUG
-  printf("sqlauth: %s connection string: %s\n", 
-      cv["sqlauthdb"].c_str(), connection_string);
+	printf("sqlauth: %s connection string: %s\n", 
+			cv["sqlauthdb"].c_str(), connection_string);
 #endif
-  try {
-    sql.open(cv["sqlauthdb"], connection_string);
-    return 0;
-  }
-  catch (std::exception const &e) {
-    if (!is_daemonised) 
-      std::cerr << "sqlauth (" << cv["sqlauthdb"] << "): " << e.what() << '\n';
-    syslog(LOG_ERR, e.what());
-    return 1;
-  }
+	try {
+		sql.open(cv["sqlauthdb"], connection_string);
+		return 0;
+	}
+	catch (std::exception const &e) {
+		if (!is_daemonised) 
+			std::cerr << "sqlauth (" << cv["sqlauthdb"] << "): " << e.what() << '\n';
+		syslog(LOG_ERR, e.what());
+		return 1;
+	}
 }
 
 // filter group determination
@@ -122,27 +120,27 @@ int sqlauthinstance::init(void* args) {
 // NOUSER stops ConnectionHandler from querying subsequent plugins.
 int sqlauthinstance::identify(Socket& peercon, Socket& proxycon, HTTPHeader &h, std::string &string)
 {
-  std::string ipstring;
+	std::string ipstring;
 
-  if (o.use_xforwardedfor) {
-    // grab the X-Forwarded-For IP if available
-    ipstring = h.getXForwardedForIP();
-    // otherwise, grab the IP directly from the client connection
-    if (ipstring.length() == 0)
-      ipstring = peercon.getPeerIP();
-  } else {
-    ipstring = peercon.getPeerIP();
-  }
-  
-  String sql_query( cv["sqlauthipuserquery"] );
-  sql_query.replaceall("-IPADDRESS-", ipstring.c_str());
+	if (o.use_xforwardedfor) {
+		// grab the X-Forwarded-For IP if available
+		ipstring = h.getXForwardedForIP();
+		// otherwise, grab the IP directly from the client connection
+		if (ipstring.length() == 0)
+			ipstring = peercon.getPeerIP();
+	} else {
+		ipstring = peercon.getPeerIP();
+	}
+	
+	String sql_query( cv["sqlauthipuserquery"] );
+	sql_query.replaceall("-IPADDRESS-", ipstring.c_str());
 
 #ifdef DGDEBUG
-  std::cout << "sqlauthipuserquery = " << sql_query << std::endl;
+	std::cout << "sqlauthipuserquery = " << sql_query << std::endl;
 #endif
 
-  string = "sql_username";
-  return DGAUTH_OK;
+	string = "sql_username";
+	return DGAUTH_OK;
 }
 
 int sqlauthinstance::determineGroup(std::string &user, int &fg)

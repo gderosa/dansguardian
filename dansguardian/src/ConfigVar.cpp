@@ -65,21 +65,21 @@ int ConfigVar::readVar(const char *filename, const char *delimiter)
 
 	while (input.getline(buffer, sizeof(buffer))) {
 
-    // Point at the first occurence of one of the delimiter chars;
-    // thus allowing a delimiter char (typically '=') to be present
-    // in parameter itself; example:
-    //
-    // sqlquery = "SELECT * FROM table WHERE field = value"
+		// Point at the first occurence of one of the delimiter chars;
+		// thus allowing a delimiter char (typically '=') to be present
+		// in parameter itself; example:
+		//
+		// sqlquery = "SELECT * FROM table WHERE field = value"
 
-    char * first_delimiter_ptr = strpbrk(buffer, delimiter);
+		char * first_delimiter_ptr = strpbrk(buffer, delimiter);
 
-    if (!first_delimiter_ptr)
-      continue;
+		if (!first_delimiter_ptr)
+			continue;
     
-    // modify *buffer itself, but this is what strtok do! the difference 
-    // is that we pick just the first occurence of token
-    //
-    *first_delimiter_ptr = '\0';
+		// modify *buffer itself, but this is what strtok do! the difference 
+		// is that we pick just the first occurence of token
+		//
+		*first_delimiter_ptr = '\0';
 
 		char *command = buffer;
 
