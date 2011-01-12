@@ -83,11 +83,8 @@ AuthPlugin *sqlauthcreate(ConfigVar & definition)
 
 // plugin quit - clear IP, subnet & range lists
 int sqlauthinstance::quit() {
-	/*
-	iplist.clear();
-	ipsubnetlist.clear();
-	iprangelist.clear();
-	*/
+	sql.close();
+	connected = false;
 	return 0;
 }
 
@@ -142,9 +139,21 @@ int sqlauthinstance::identify(Socket& peercon, Socket& proxycon, HTTPHeader &h, 
 	std::cout << "sqlauthipuserquery expanded to: " 
 		<< sql_query << std::endl;
 #endif
-
-	string = "sql_username";
-	return DGAUTH_OK;
+	try {
+		soci::indicator ind;
+		sql << sql_query, into(string, ind);
+		if ( ind == soci::i_ok ) {
+			return DGAUTH_OK;
+		} else {
+			return DGAUTH_NOMATCH;
+		}
+	}
+	catch (std::exception const &e) {
+		if (!is_daemonised) 
+			std::cerr << "sqlauth (" << cv["sqlauthdb"] << "): " << e.what() << '\n';
+		syslog(LOG_ERR, e.what());
+		return DGAUTH_NOMATCH; // allow other plugins to work
+	}
 }
 
 int sqlauthinstance::determineGroup(std::string &user, int &fg)
