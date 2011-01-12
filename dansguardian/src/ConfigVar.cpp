@@ -25,7 +25,7 @@
 #include "ConfigVar.hpp"
 
 #include <fstream>
-
+#include <cstring>
 
 // IMPLEMENTATION
 
@@ -65,15 +65,27 @@ int ConfigVar::readVar(const char *filename, const char *delimiter)
 
 	while (input.getline(buffer, sizeof(buffer))) {
 
-		char *command = strtok(buffer, delimiter);
-		if (!command)
-			continue;
+    // Point at the first occurence of one of the delimiter chars;
+    // thus allowing a delimiter char (typically '=') to be present
+    // in parameter itself; example:
+    //
+    // sqlquery = "SELECT * FROM table WHERE field = value"
 
-		char *parameter = strtok(NULL, delimiter);
-		if (!parameter)
-			continue;
+    char * first_delimiter_ptr = strpbrk(buffer, delimiter);
 
-		// strip delimiters
+    if (!first_delimiter_ptr)
+      continue;
+    
+    // modify *buffer itself, but this is what strtok do! the difference 
+    // is that we pick just the first occurence of token
+    //
+    *first_delimiter_ptr = '\0';
+
+		char *command = buffer;
+
+		char *parameter = first_delimiter_ptr + 1;
+
+		// strip quotes and spaces
 		while (*parameter == '"' || *parameter == '\'' || *parameter == ' ')
 			parameter++;
 		int offset = strlen(parameter) - 1;

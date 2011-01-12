@@ -60,18 +60,8 @@ public:
 
 	int init(void* args);
 	int quit();
-/*
 private:
-	std::vector<ip> iplist;
-	std::list<subnetstruct> ipsubnetlist;
-	std::list<rangestruct> iprangelist;
-
-	int readIPMelangeList(const char *filename);
-	int searchList(int a, int s, const uint32_t &ip);
-	int inList(const uint32_t &ip);
-	int inSubnet(const uint32_t &ip);
-	int inRange(const uint32_t &ip);
-*/
+	int readConf(const char *filename);
 };
 
 
@@ -124,8 +114,10 @@ int sqlauthinstance::identify(Socket& peercon, Socket& proxycon, HTTPHeader &h, 
   } else {
     string = peercon.getPeerIP();
   }
+#ifdef DGDEBUG
+  std::cout << "sqlauthipuserquery = " << cv["sqlauthipuserquery"] << std::endl;
+#endif
   return DGAUTH_OK;
-
 }
 
 int sqlauthinstance::determineGroup(std::string &user, int &fg)
