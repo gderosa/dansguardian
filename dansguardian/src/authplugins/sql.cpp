@@ -136,7 +136,8 @@ int sqlauthinstance::identify(Socket& peercon, Socket& proxycon, HTTPHeader &h, 
 	sql_query.replaceall("-IPADDRESS-", ipstring.c_str());
 
 #ifdef DGDEBUG
-	std::cout << "sqlauthipuserquery = " << sql_query << std::endl;
+	std::cout << "sqlauthipuserquery expanded to: " 
+		<< sql_query << std::endl;
 #endif
 
 	string = "sql_username";
