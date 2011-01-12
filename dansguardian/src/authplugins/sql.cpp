@@ -60,6 +60,7 @@ public:
 	int quit();
 private:
 	soci::session sql;
+	bool connected;
 };
 
 
@@ -92,6 +93,7 @@ int sqlauthinstance::quit() {
 
 // plugin init 
 int sqlauthinstance::init(void* args) {
+	connected = false;
 	char connection_string[1024];
 	sprintf(connection_string, "host='%s' db='%s' user='%s' password='%s'", 
 		cv["sqlauthdbhost"].c_str(), 
@@ -105,6 +107,7 @@ int sqlauthinstance::init(void* args) {
 #endif
 	try {
 		sql.open(cv["sqlauthdb"], connection_string);
+		connected = true;
 		return 0;
 	}
 	catch (std::exception const &e) {
