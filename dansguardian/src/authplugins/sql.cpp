@@ -118,11 +118,11 @@ int sqlauthinstance::init(void* args) {
 	}
 }
 
-// filter group determination
-// never actually return NOUSER from this, because we don't actually look in the filtergroupslist.
-// NOUSER stops ConnectionHandler from querying subsequent plugins.
 int sqlauthinstance::identify(Socket& peercon, Socket& proxycon, HTTPHeader &h, std::string &string)
 {
+	if(!connected) // so other plugins will be queried
+			return DGAUTH_NOMATCH;
+
 	std::string ipstring;
 
 	if (o.use_xforwardedfor) {
