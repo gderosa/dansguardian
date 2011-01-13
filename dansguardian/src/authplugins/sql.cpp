@@ -1,4 +1,4 @@
-// IP SQL auth plugin
+// IP SQL auth plugin -- by Guido De Rosa <guido.derosa * vemarsas.it>
 
 // Please refer to http://dansguardian.org/?page=copyright2
 // for the license for this code.
@@ -81,7 +81,7 @@ AuthPlugin *sqlauthcreate(ConfigVar & definition)
 //
 //
 
-// plugin quit - clear IP, subnet & range lists
+// cleanup
 int sqlauthinstance::quit() {
 	if (pool) 
 		delete pool;
