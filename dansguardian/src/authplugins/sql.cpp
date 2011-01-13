@@ -112,8 +112,8 @@ int sqlauthinstance::init(void* args) {
 	}
 	catch (std::exception const &e) {
 		if (!is_daemonised) 
-			std::cerr << "sqlauth (" << cv["sqlauthdb"] << "): " << e.what() << '\n';
-		syslog(LOG_ERR, e.what());
+			std::cerr << "sqlauthinstance::init(): " << e.what() << '\n';
+		syslog(LOG_ERR, "sqlauthinstance::init(): %s", e.what());
 		return 1;
 	}
 }
@@ -151,8 +151,8 @@ int sqlauthinstance::identify(Socket& peercon, Socket& proxycon, HTTPHeader &h, 
 	}
 	catch (std::exception const &e) {
 		if (!is_daemonised) 
-			std::cerr << "sqlauth (" << cv["sqlauthdb"] << "): " << e.what() << '\n';
-		syslog(LOG_ERR, e.what());
+			std::cerr << "sqlauthinstance::identify(): " << e.what() << '\n';
+		syslog(LOG_ERR, "sqlauthinstance::identify(): %s", e.what());
 		return DGAUTH_NOMATCH; // allow other plugins to work
 	}
 }
