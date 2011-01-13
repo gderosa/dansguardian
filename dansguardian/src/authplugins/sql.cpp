@@ -58,11 +58,11 @@ public:
 
 	int init(void* args);
 	int quit();
-//private:
+private:
 	static const size_t poolSize;
 	soci::connection_pool * pool;
 };
-const size_t sqlauthinstance::poolSize = 6;
+const size_t sqlauthinstance::poolSize = 60; // TODO: make it configurable
 
 // IMPLEMENTATION
 
