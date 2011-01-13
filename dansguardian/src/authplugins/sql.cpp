@@ -58,11 +58,7 @@ public:
 
 	int init(void* args);
 	int quit();
-private:
-	static const size_t poolSize;
-	soci::connection_pool * pool;
 };
-const size_t sqlauthinstance::poolSize = 60; // TODO: make it configurable
 
 // IMPLEMENTATION
 
@@ -81,15 +77,13 @@ AuthPlugin *sqlauthcreate(ConfigVar & definition)
 //
 //
 
-// cleanup
 int sqlauthinstance::quit() {
-	if (pool) 
-		delete pool;
 	return 0;
 }
 
 // plugin init 
 int sqlauthinstance::init(void* args) {
+	/*
 	pool = new soci::connection_pool(poolSize);
 
 	char connection_string[1024];
@@ -116,6 +110,8 @@ int sqlauthinstance::init(void* args) {
 		syslog(LOG_ERR, "sqlauthinstance::init(): %s", e.what());
 		return 1;
 	}
+	*/
+	return 0;
 }
 
 int sqlauthinstance::identify(Socket& peercon, Socket& proxycon, HTTPHeader &h, std::string &string)
@@ -131,6 +127,20 @@ int sqlauthinstance::identify(Socket& peercon, Socket& proxycon, HTTPHeader &h, 
 	} else {
 		ipstring = peercon.getPeerIP();
 	}
+
+	char connection_string[1024];
+	sprintf(connection_string, "host='%s' db='%s' user='%s' password='%s'", 
+		cv["sqlauthdbhost"].c_str(), 
+		cv["sqlauthdbname"].c_str(), 
+		cv["sqlauthdbuser"].c_str(), 
+		cv["sqlauthdbpass"].c_str()
+	);
+
+#ifdef DGDEBUG
+	printf("sqlauth: %s connection string: %s\n", 
+			cv["sqlauthdb"].c_str(), connection_string);
+#endif
+
 	
 	String sql_query( cv["sqlauthipuserquery"] );
 	sql_query.replaceall("-IPADDRESS-", ipstring.c_str());
@@ -140,7 +150,7 @@ int sqlauthinstance::identify(Socket& peercon, Socket& proxycon, HTTPHeader &h, 
 		<< sql_query << std::endl;
 #endif
 	try {
-		soci::session sql(*pool);
+		soci::session sql(cv["sqlauthdb"], connection_string);
 		soci::indicator ind;
 		sql << sql_query, into(string, ind);
 		if ( ind == soci::i_ok ) {
