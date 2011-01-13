@@ -58,11 +58,11 @@ public:
 
 	int init(void* args);
 	int quit();
-private:
-	soci::session sql;
-	bool connected;
+//private:
+	static const size_t poolSize;
+	soci::connection_pool * pool;
 };
-
+const size_t sqlauthinstance::poolSize = 6;
 
 // IMPLEMENTATION
 
@@ -83,14 +83,15 @@ AuthPlugin *sqlauthcreate(ConfigVar & definition)
 
 // plugin quit - clear IP, subnet & range lists
 int sqlauthinstance::quit() {
-	sql.close();
-	connected = false;
+	if (pool) 
+		delete pool;
 	return 0;
 }
 
 // plugin init 
 int sqlauthinstance::init(void* args) {
-	connected = false;
+	pool = new soci::connection_pool(poolSize);
+
 	char connection_string[1024];
 	sprintf(connection_string, "host='%s' db='%s' user='%s' password='%s'", 
 		cv["sqlauthdbhost"].c_str(), 
@@ -103,8 +104,10 @@ int sqlauthinstance::init(void* args) {
 			cv["sqlauthdb"].c_str(), connection_string);
 #endif
 	try {
-		sql.open(cv["sqlauthdb"], connection_string);
-		connected = true;
+		for (size_t i = 0; i < poolSize; ++i) {
+			soci::session & sql = pool->at(i);
+			sql.open(cv["sqlauthdb"], connection_string);
+		}
 		return 0;
 	}
 	catch (std::exception const &e) {
@@ -117,9 +120,6 @@ int sqlauthinstance::init(void* args) {
 
 int sqlauthinstance::identify(Socket& peercon, Socket& proxycon, HTTPHeader &h, std::string &string)
 {
-	if(!connected) // so other plugins will be queried
-			return DGAUTH_NOMATCH;
-
 	std::string ipstring;
 
 	if (o.use_xforwardedfor) {
@@ -140,6 +140,7 @@ int sqlauthinstance::identify(Socket& peercon, Socket& proxycon, HTTPHeader &h, 
 		<< sql_query << std::endl;
 #endif
 	try {
+		soci::session sql(*pool);
 		soci::indicator ind;
 		sql << sql_query, into(string, ind);
 		if ( ind == soci::i_ok ) {
