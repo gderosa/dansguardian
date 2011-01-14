@@ -57,8 +57,9 @@ public:
 
 	int init(void* args);
 	int quit();
-private:
+protected:
 	std::string connection_string;
+	ConfigVar groupmap;
 };
 
 // IMPLEMENTATION
@@ -79,6 +80,7 @@ int sqlauthinstance::init(void* args) {
 		"db='"       + cv["sqlauthdbname"] + "' " + 
 		"user='"     + cv["sqlauthdbuser"] + "' " +
 		"password='" + cv["sqlauthdbpass"] + "'"  ;
+	groupmap.readVar(cv["sqlauthgroups"].c_str(), "=");
 	return 0;
 }
 
@@ -130,16 +132,10 @@ int sqlauthinstance::determineGroup(std::string &user, int &fg)
 	std::cout << "sqlauthusergroupquery expanded to: " 
 		<< sql_query << std::endl;
 #endif
+	std::vector<std::string> sqlgroups(32); // will be shrinked
 	try {
-		std::vector<std::string> sqlgroups(32); // will be shrinked
 		soci::session sql(cv["sqlauthdb"], connection_string);
 		sql << sql_query, soci::into(sqlgroups);
-		if ( sqlgroups.size() > 0 ) {
-			fg = 1;
-			return DGAUTH_OK;
-		} else {
-			return DGAUTH_NOMATCH;
-		}
 	}
 	catch (std::exception const &e) {
 		if (!is_daemonised) 
@@ -147,6 +143,12 @@ int sqlauthinstance::determineGroup(std::string &user, int &fg)
 		syslog(LOG_ERR, "sqlauthinstance::determineGroup(): %s", e.what());
 		return DGAUTH_NOMATCH; // allow other plugins to work
 	}
+	for (unsigned int i=0; i<sqlgroups.size(); i++)	 {
+		if (groupmap[sqlgroups[i].c_str()].size() > 0) {
+			fg = 1;
+				return DGAUTH_OK;
+			}
+		}
 	return DGAUTH_NOMATCH;
 }
 
