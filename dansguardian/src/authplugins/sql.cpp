@@ -144,9 +144,13 @@ int sqlauthinstance::determineGroup(std::string &user, int &fg)
 		return DGAUTH_NOMATCH; // allow other plugins to work
 	}
 	for (unsigned int i=0; i<sqlgroups.size(); i++)	 {
-		if (groupmap[sqlgroups[i].c_str()].size() > 0) {
-			fg = 1;
-				return DGAUTH_OK;
+		String filtername = groupmap[ sqlgroups[i].c_str() ];
+		if ( filtername.size() > 0 ) { 
+			fg = filtername.after("filter").toInteger();
+				if (fg > 0) {
+					fg--;
+					return DGAUTH_OK;
+				}
 			}
 		}
 	return DGAUTH_NOMATCH;
