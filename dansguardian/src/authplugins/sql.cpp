@@ -60,6 +60,8 @@ public:
 protected:
 	std::string connection_string;
 	ConfigVar groupmap;
+	std::map <std::string, std::string> ipuser_cache;
+	std::map <std::string, int> userfg_cache;
 };
 
 // IMPLEMENTATION
@@ -71,6 +73,8 @@ AuthPlugin *sqlauthcreate(ConfigVar & definition)
 }
 
 int sqlauthinstance::quit() {
+	ipuser_cache.clear();
+	userfg_cache.clear();
 	return 0;
 }
 
@@ -97,35 +101,45 @@ int sqlauthinstance::identify(Socket& peercon, Socket& proxycon, HTTPHeader &h, 
 	} else {
 		ipstring = peercon.getPeerIP();
 	}
-
-
-	String sql_query( cv["sqlauthipuserquery"] );
-	sql_query.replaceall("-IPADDRESS-", ipstring.c_str());
+	
+	if (ipuser_cache.count(ipstring)) { 
+		string = ipuser_cache[ipstring];
+		return DGAUTH_OK;
+	} else { // query the db
+		String sql_query( cv["sqlauthipuserquery"] );
+		sql_query.replaceall("-IPADDRESS-", ipstring.c_str());
 
 #ifdef DGDEBUG
-	std::cout << "sqlauthipuserquery expanded to: " 
-		<< sql_query << std::endl;
+		std::cout << "sqlauthipuserquery expanded to: " 
+			<< sql_query << std::endl;
 #endif
-	try {
-		soci::session sql(cv["sqlauthdb"], connection_string);
-		soci::indicator ind;
-		sql << sql_query, soci::into(string, ind);
-		if ( ind == soci::i_ok ) {
-			return DGAUTH_OK;
-		} else {
-			return DGAUTH_NOMATCH;
+		try {
+			soci::session sql(cv["sqlauthdb"], connection_string);
+			soci::indicator ind;
+			sql << sql_query, soci::into(string, ind);
+			if ( ind == soci::i_ok ) {
+				ipuser_cache[ipstring] = string;
+				return DGAUTH_OK;
+			} else {
+				return DGAUTH_NOMATCH;
+			}
 		}
-	}
-	catch (std::exception const &e) {
-		if (!is_daemonised) 
-			std::cerr << "sqlauthinstance::identify(): " << e.what() << '\n';
-		syslog(LOG_ERR, "sqlauthinstance::identify(): %s", e.what());
-		return DGAUTH_NOMATCH; // allow other plugins to work
+		catch (std::exception const &e) {
+			if (!is_daemonised) 
+				std::cerr << "sqlauthinstance::identify(): " << e.what() << '\n';
+			syslog(LOG_ERR, "sqlauthinstance::identify(): %s", e.what());
+			return DGAUTH_NOMATCH; // allow other plugins to work
+		}
 	}
 }
 
 int sqlauthinstance::determineGroup(std::string &user, int &fg)
 {
+	if (userfg_cache.count(user)) {
+		fg = userfg_cache[user];
+		return DGAUTH_OK;
+	}		
+
 	String sql_query( cv["sqlauthusergroupquery"] );
 	sql_query.replaceall("-USERNAME-", user.c_str());
 #ifdef DGDEBUG
@@ -149,6 +163,7 @@ int sqlauthinstance::determineGroup(std::string &user, int &fg)
 			fg = filtername.after("filter").toInteger();
 				if (fg > 0) {
 					fg--;
+					userfg_cache[user] = fg;
 					return DGAUTH_OK;
 				}
 			}
