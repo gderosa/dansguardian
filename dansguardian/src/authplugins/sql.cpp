@@ -30,6 +30,7 @@
 #include <unistd.h>
 #include <iostream>
 #include <fstream>
+#include <vector>
 
 #include <soci/soci.h>
 
@@ -106,7 +107,7 @@ int sqlauthinstance::identify(Socket& peercon, Socket& proxycon, HTTPHeader &h, 
 	try {
 		soci::session sql(cv["sqlauthdb"], connection_string);
 		soci::indicator ind;
-		sql << sql_query, into(string, ind);
+		sql << sql_query, soci::into(string, ind);
 		if ( ind == soci::i_ok ) {
 			return DGAUTH_OK;
 		} else {
@@ -123,8 +124,30 @@ int sqlauthinstance::identify(Socket& peercon, Socket& proxycon, HTTPHeader &h, 
 
 int sqlauthinstance::determineGroup(std::string &user, int &fg)
 {
-	fg = 1;
-	return DGAUTH_OK;
+	String sql_query( cv["sqlauthusergroupquery"] );
+	sql_query.replaceall("-USERNAME-", user.c_str());
+#ifdef DGDEBUG
+	std::cout << "sqlauthusergroupquery expanded to: " 
+		<< sql_query << std::endl;
+#endif
+	try {
+		std::vector<std::string> sqlgroups(32); // will be shrinked
+		soci::session sql(cv["sqlauthdb"], connection_string);
+		sql << sql_query, soci::into(sqlgroups);
+		if ( sqlgroups.size() > 0 ) {
+			fg = 1;
+			return DGAUTH_OK;
+		} else {
+			return DGAUTH_NOMATCH;
+		}
+	}
+	catch (std::exception const &e) {
+		if (!is_daemonised) 
+			std::cerr << "sqlauthinstance::determineGroup(): " << e.what() << '\n';
+		syslog(LOG_ERR, "sqlauthinstance::determineGroup(): %s", e.what());
+		return DGAUTH_NOMATCH; // allow other plugins to work
+	}
+	return DGAUTH_NOMATCH;
 }
 
 
