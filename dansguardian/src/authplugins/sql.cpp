@@ -35,10 +35,6 @@
 
 #include <soci/soci.h>
 
-#ifndef DG_SQLAUTH_CACHE_TTL
-#	define DG_SQLAUTH_CACHE_TTL 10.0
-#endif
-
 // GLOBALS
 extern bool is_daemonised;
 extern OptionContainer o;
@@ -67,6 +63,7 @@ protected:
 	std::map <std::string, std::string> ipuser_cache;
 	std::map <std::string, int> userfg_cache;
 	time_t cache_timestamp;
+	double cache_ttl; // difftime() returns double
 	bool flush_cache_if_too_old();
 };
 
@@ -91,6 +88,7 @@ int sqlauthinstance::init(void* args) {
 		"user='"     + cv["sqlauthdbuser"] + "' " +
 		"password='" + cv["sqlauthdbpass"] + "'"  ;
 	groupmap.readVar(cv["sqlauthgroups"].c_str(), "=");
+	cache_ttl = atof(cv["sqlauthcachettl"].c_str());
 	cache_timestamp = time(NULL); 
 	return 0;
 }
@@ -117,11 +115,6 @@ int sqlauthinstance::identify(Socket& peercon, Socket& proxycon, HTTPHeader &h, 
 	} else { // query the db
 		String sql_query( cv["sqlauthipuserquery"] );
 		sql_query.replaceall("-IPADDRESS-", ipstring.c_str());
-
-#ifdef DGDEBUG
-		std::cout << "sqlauthipuserquery expanded to: " 
-			<< sql_query << std::endl;
-#endif
 		try {
 			soci::session sql(cv["sqlauthdb"], connection_string);
 			soci::indicator ind;
@@ -153,10 +146,6 @@ int sqlauthinstance::determineGroup(std::string &user, int &fg)
 
 	String sql_query( cv["sqlauthusergroupquery"] );
 	sql_query.replaceall("-USERNAME-", user.c_str());
-#ifdef DGDEBUG
-	std::cout << "sqlauthusergroupquery expanded to: " 
-		<< sql_query << std::endl;
-#endif
 	std::vector<std::string> sqlgroups(32); // will be shrinked
 	try {
 		soci::session sql(cv["sqlauthdb"], connection_string);
@@ -184,7 +173,7 @@ int sqlauthinstance::determineGroup(std::string &user, int &fg)
 
 bool sqlauthinstance::flush_cache_if_too_old()
 {
-	if (difftime(time(NULL), cache_timestamp) > DG_SQLAUTH_CACHE_TTL) {
+	if (difftime(time(NULL), cache_timestamp) > cache_ttl) {
 		ipuser_cache.clear();
 		userfg_cache.clear();
 		cache_timestamp = time(NULL);
