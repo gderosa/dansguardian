@@ -31,9 +31,13 @@
 #include <iostream>
 #include <fstream>
 #include <vector>
+#include <ctime>
 
 #include <soci/soci.h>
 
+#ifndef DG_SQLAUTH_CACHE_TTL
+#	define DG_SQLAUTH_CACHE_TTL 10.0
+#endif
 
 // GLOBALS
 extern bool is_daemonised;
@@ -62,6 +66,8 @@ protected:
 	ConfigVar groupmap;
 	std::map <std::string, std::string> ipuser_cache;
 	std::map <std::string, int> userfg_cache;
+	time_t cache_timestamp;
+	bool flush_cache_if_too_old();
 };
 
 // IMPLEMENTATION
@@ -85,11 +91,14 @@ int sqlauthinstance::init(void* args) {
 		"user='"     + cv["sqlauthdbuser"] + "' " +
 		"password='" + cv["sqlauthdbpass"] + "'"  ;
 	groupmap.readVar(cv["sqlauthgroups"].c_str(), "=");
+	cache_timestamp = time(NULL); 
 	return 0;
 }
 
 int sqlauthinstance::identify(Socket& peercon, Socket& proxycon, HTTPHeader &h, std::string &string)
 {
+	flush_cache_if_too_old();
+
 	std::string ipstring;
 
 	if (o.use_xforwardedfor) {
@@ -135,6 +144,8 @@ int sqlauthinstance::identify(Socket& peercon, Socket& proxycon, HTTPHeader &h, 
 
 int sqlauthinstance::determineGroup(std::string &user, int &fg)
 {
+	flush_cache_if_too_old();
+
 	if (userfg_cache.count(user)) {
 		fg = userfg_cache[user];
 		return DGAUTH_OK;
@@ -171,4 +182,13 @@ int sqlauthinstance::determineGroup(std::string &user, int &fg)
 	return DGAUTH_NOMATCH;
 }
 
-
+bool sqlauthinstance::flush_cache_if_too_old()
+{
+	if (difftime(time(NULL), cache_timestamp) > DG_SQLAUTH_CACHE_TTL) {
+		ipuser_cache.clear();
+		userfg_cache.clear();
+		cache_timestamp = time(NULL);
+		return true;
+	}
+	return false;
+}
