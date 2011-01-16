@@ -35,6 +35,13 @@
 
 #include <soci/soci.h>
 
+#include <fcntl.h>
+#include <sys/mman.h> // shm_open(), mmap() and friends
+
+#define DG_SQLAUTH_CACHESZ (100000) 
+#define DG_SQLAUTH_IPUSER_CACHE_SHMNAME "/dg_sqlauth_ipuser_cache"
+#define DG_SQLAUTH_USERFG_CACHE_SHMNAME "/dg_sqlauth_userfg_cache"
+
 // GLOBALS
 extern bool is_daemonised;
 extern OptionContainer o;
@@ -60,8 +67,8 @@ public:
 protected:
 	std::string connection_string;
 	ConfigVar groupmap;
-	std::map <std::string, std::string> ipuser_cache;
-	std::map <std::string, int> userfg_cache;
+	std::map <std::string, std::string> * ipuser_cache;
+	std::map <std::string, int> * userfg_cache;
 	time_t cache_timestamp;
 	double cache_ttl; // difftime() returns double
 	bool flush_cache_if_too_old();
@@ -76,8 +83,8 @@ AuthPlugin *sqlauthcreate(ConfigVar & definition)
 }
 
 int sqlauthinstance::quit() {
-	ipuser_cache.clear();
-	userfg_cache.clear();
+	ipuser_cache->clear();
+	userfg_cache->clear();
 	return 0;
 }
 
@@ -90,6 +97,29 @@ int sqlauthinstance::init(void* args) {
 	groupmap.readVar(cv["sqlauthgroups"].c_str(), "=");
 	cache_ttl = atof(cv["sqlauthcachettl"].c_str());
 	cache_timestamp = time(NULL); 
+
+	int fd;
+	
+	fd = shm_open(
+		DG_SQLAUTH_IPUSER_CACHE_SHMNAME,
+		O_RDWR | O_CREAT,
+		0777
+	);
+	ftruncate(fd, DG_SQLAUTH_CACHESZ);
+	ipuser_cache = (std::map <std::string, std::string> *) mmap(
+		0, DG_SQLAUTH_CACHESZ, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0
+	);
+
+	fd = shm_open(
+		DG_SQLAUTH_USERFG_CACHE_SHMNAME,
+		O_RDWR | O_CREAT,
+		0777
+	);
+	ftruncate(fd, DG_SQLAUTH_CACHESZ);
+	userfg_cache = (std::map <std::string, int> *) mmap(
+		0, DG_SQLAUTH_CACHESZ, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0
+	);
+
 	return 0;
 }
 
@@ -109,8 +139,8 @@ int sqlauthinstance::identify(Socket& peercon, Socket& proxycon, HTTPHeader &h, 
 		ipstring = peercon.getPeerIP();
 	}
 	
-	if (ipuser_cache.count(ipstring)) { 
-		string = ipuser_cache[ipstring];
+	if (ipuser_cache->count(ipstring)) { 
+		string = (*ipuser_cache)[ipstring];
 		return DGAUTH_OK;
 	} else { // query the db
 		String sql_query( cv["sqlauthipuserquery"] );
@@ -120,7 +150,7 @@ int sqlauthinstance::identify(Socket& peercon, Socket& proxycon, HTTPHeader &h, 
 			soci::indicator ind;
 			sql << sql_query, soci::into(string, ind);
 			if ( ind == soci::i_ok ) {
-				ipuser_cache[ipstring] = string;
+				(*ipuser_cache)[ipstring] = string;
 				return DGAUTH_OK;
 			} else {
 				return DGAUTH_NOMATCH;
@@ -139,8 +169,8 @@ int sqlauthinstance::determineGroup(std::string &user, int &fg)
 {
 	flush_cache_if_too_old();
 
-	if (userfg_cache.count(user)) {
-		fg = userfg_cache[user];
+	if (userfg_cache->count(user)) {
+		fg = (*userfg_cache)[user];
 		return DGAUTH_OK;
 	}		
 
@@ -163,7 +193,7 @@ int sqlauthinstance::determineGroup(std::string &user, int &fg)
 			fg = filtername.after("filter").toInteger();
 				if (fg > 0) {
 					fg--;
-					userfg_cache[user] = fg;
+					(*userfg_cache)[user] = fg;
 					return DGAUTH_OK;
 				}
 			}
@@ -174,8 +204,8 @@ int sqlauthinstance::determineGroup(std::string &user, int &fg)
 bool sqlauthinstance::flush_cache_if_too_old()
 {
 	if (difftime(time(NULL), cache_timestamp) > cache_ttl) {
-		ipuser_cache.clear();
-		userfg_cache.clear();
+		ipuser_cache->clear();
+		userfg_cache->clear();
 		cache_timestamp = time(NULL);
 		return true;
 	}
