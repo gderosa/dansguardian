@@ -76,8 +76,8 @@ public:
 protected:
 	std::string connection_string;
 	ConfigVar groupmap;
-	std::map <std::string, std::string> ipuser_cache;
-	std::map <std::string, int> userfg_cache;
+	ipuserMap * ipuser_cache;
+	userfgMap * userfg_cache;
 	time_t cache_timestamp;
 	double cache_ttl; // difftime() returns double
 	bool flush_cache_if_too_old();
@@ -121,7 +121,17 @@ int sqlauthinstance::init(void* args) {
 	cache_ttl = atof(cv["sqlauthcachettl"].c_str());
 	cache_timestamp = time(NULL); 
 
+	ipuserAllocator ipuser_alloca (ipuser_segment.get_segment_manager());
+	userfgAllocator userfg_alloca (userfg_segment.get_segment_manager());
 
+	ipuser_cache =
+      ipuser_segment.construct<ipuserMap>("ipuser_cache")      //object name
+                                 (std::less<ipType>() //first  ctor parameter
+                                 ,ipuser_alloca);     //second ctor parameter
+	userfg_cache =
+      userfg_segment.construct<userfgMap>("userfg_cache")      //object name
+                                 (std::less<userType>() //first  ctor parameter
+                                 ,userfg_alloca);     //second ctor parameter
 
 	return 0;
 }
@@ -142,8 +152,8 @@ int sqlauthinstance::identify(Socket& peercon, Socket& proxycon, HTTPHeader &h, 
 		ipstring = peercon.getPeerIP();
 	}
 	
-	if (ipuser_cache.count(ipstring)) { 
-		string = ipuser_cache[ipstring];
+	if (ipuser_cache->count(ipstring)) { 
+		string = (*ipuser_cache)[ipstring];
 		return DGAUTH_OK;
 	}
 	
@@ -159,7 +169,7 @@ int sqlauthinstance::identify(Socket& peercon, Socket& proxycon, HTTPHeader &h, 
 		soci::indicator ind;
 		sql << sql_query, soci::into(string, ind);
 		if ( ind == soci::i_ok ) {
-			ipuser_cache[ipstring] = string;
+			(*ipuser_cache)[ipstring] = string;
 			return DGAUTH_OK;
 		} else {
 			return DGAUTH_NOMATCH;
@@ -177,8 +187,8 @@ int sqlauthinstance::determineGroup(std::string &user, int &fg)
 {
 	flush_cache_if_too_old();
 
-	if (userfg_cache.count(user)) {
-		fg = userfg_cache[user];
+	if (userfg_cache->count(user)) {
+		fg = (*userfg_cache)[user];
 		return DGAUTH_OK;
 	}		
 
@@ -205,7 +215,7 @@ int sqlauthinstance::determineGroup(std::string &user, int &fg)
 			fg = filtername.after("filter").toInteger();
 				if (fg > 0) {
 					fg--;
-					userfg_cache[user] = fg;
+					(*userfg_cache)[user] = fg;
 					return DGAUTH_OK;
 				}
 			}
@@ -216,8 +226,8 @@ int sqlauthinstance::determineGroup(std::string &user, int &fg)
 bool sqlauthinstance::flush_cache_if_too_old()
 {
 	if (difftime(time(NULL), cache_timestamp) > cache_ttl) {
-		ipuser_cache.clear();
-		userfg_cache.clear();
+		ipuser_cache->clear();
+		userfg_cache->clear();
 		cache_timestamp = time(NULL);
 		return true;
 	}
