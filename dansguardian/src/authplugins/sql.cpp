@@ -35,6 +35,9 @@
 
 #include <soci/soci.h>
 
+#include <sys/types.h>
+#include <pwd.h>
+#include <grp.h>
 #include <fcntl.h>
 #include <sys/mman.h> // shm_open(), mmap() and friends
 
@@ -114,26 +117,32 @@ int sqlauthinstance::init(void* args) {
 	 */
 
 	int fd;
+	int uid = (int) (getpwnam(o.daemon_user_name.c_str()))->pw_uid;
+	int gid = (int) (getgrnam(o.daemon_group_name.c_str()))->gr_gid;
 	
 	fd = shm_open(
-		"dg_shared_ipuser_pair",
+		"/dg_shared_ipuser_pair",
 		O_RDWR | O_CREAT,
-		0666
+		0600
 	);
 	ftruncate(fd, sizeof(ipuser_POD_pair)); 
 	ipuser_shared_pair = (ipuser_POD_pair *) mmap(
 		0, sizeof(ipuser_POD_pair), PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0
 	);
+	if (getuid() == 0) 
+		fchown(fd, uid, gid);
 
 	fd = shm_open(
-		"dg_shared_userfg_pair",
+		"/dg_shared_userfg_pair",
 		O_RDWR | O_CREAT,
-		0666
+		0600
 	);
 	ftruncate(fd, sizeof(userfg_POD_pair));
 	userfg_shared_pair = (userfg_POD_pair *) mmap(
 		0, sizeof(userfg_POD_pair), PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0
 	);
+	if (getuid() == 0)
+		fchown(fd, uid, gid);
 
 	strcpy(ipuser_shared_pair->ip, "0.0.0.0");
 	strcpy(ipuser_shared_pair->user, "__nobody__");
