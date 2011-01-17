@@ -35,3 +35,6 @@ sqlauthusergroupquery = 'SELECT `groupname` FROM `radusergroup` WHERE `username`
 # querying the database again
 sqlauthcachettl = 120
 
+# Whether to print sql queries to stdout when in foreground (-N switch) 
+# default off
+#sqlauthdebug = off

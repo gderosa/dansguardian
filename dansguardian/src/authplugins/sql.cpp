@@ -112,26 +112,31 @@ int sqlauthinstance::identify(Socket& peercon, Socket& proxycon, HTTPHeader &h, 
 	if (ipuser_cache.count(ipstring)) { 
 		string = ipuser_cache[ipstring];
 		return DGAUTH_OK;
-	} else { // query the db
-		String sql_query( cv["sqlauthipuserquery"] );
-		sql_query.replaceall("-IPADDRESS-", ipstring.c_str());
-		try {
-			soci::session sql(cv["sqlauthdb"], connection_string);
-			soci::indicator ind;
-			sql << sql_query, soci::into(string, ind);
-			if ( ind == soci::i_ok ) {
-				ipuser_cache[ipstring] = string;
-				return DGAUTH_OK;
-			} else {
-				return DGAUTH_NOMATCH;
-			}
-		}
-		catch (std::exception const &e) {
+	}
+	
+	// query the db
+	String sql_query( cv["sqlauthipuserquery"] );
+	sql_query.replaceall("-IPADDRESS-", ipstring.c_str());
+	try {
+		if (cv["sqlauthdebug"] == "on") {
 			if (!is_daemonised) 
-				std::cerr << "sqlauthinstance::identify(): " << e.what() << '\n';
-			syslog(LOG_ERR, "sqlauthinstance::identify(): %s", e.what());
-			return DGAUTH_NOMATCH; // allow other plugins to work
+				std::cout << time(NULL) << ": " << sql_query << std::endl;
 		}
+		soci::session sql(cv["sqlauthdb"], connection_string);
+		soci::indicator ind;
+		sql << sql_query, soci::into(string, ind);
+		if ( ind == soci::i_ok ) {
+			ipuser_cache[ipstring] = string;
+			return DGAUTH_OK;
+		} else {
+			return DGAUTH_NOMATCH;
+		}
+	}
+	catch (std::exception const &e) {
+		if (!is_daemonised) 
+			std::cerr << "sqlauthinstance::identify(): " << e.what() << '\n';
+		syslog(LOG_ERR, "sqlauthinstance::identify(): %s", e.what());
+		return DGAUTH_NOMATCH; // allow other plugins to work
 	}
 }
 
@@ -148,6 +153,10 @@ int sqlauthinstance::determineGroup(std::string &user, int &fg)
 	sql_query.replaceall("-USERNAME-", user.c_str());
 	std::vector<std::string> sqlgroups(32); // will be shrinked
 	try {
+		if (cv["sqlauthdebug"] == "on") {
+			if (!is_daemonised) 
+				std::cout << time(NULL) << ": " << sql_query << std::endl;
+		}	
 		soci::session sql(cv["sqlauthdb"], connection_string);
 		sql << sql_query, soci::into(sqlgroups);
 	}
