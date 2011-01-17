@@ -38,10 +38,6 @@
 #include <fcntl.h>
 #include <sys/mman.h> // shm_open(), mmap() and friends
 
-#define DG_SQLAUTH_CACHESZ (100000) 
-#define DG_SQLAUTH_IPUSER_CACHE_SHMNAME "/dg_sqlauth_ipuser_cache"
-#define DG_SQLAUTH_USERFG_CACHE_SHMNAME "/dg_sqlauth_userfg_cache"
-
 // GLOBALS
 extern bool is_daemonised;
 extern OptionContainer o;
@@ -67,11 +63,21 @@ public:
 protected:
 	std::string connection_string;
 	ConfigVar groupmap;
-	std::map <std::string, std::string> * ipuser_cache;
-	std::map <std::string, int> * userfg_cache;
+	std::map <std::string, std::string> ipuser_cache;
+	std::map <std::string, int> userfg_cache;
 	time_t cache_timestamp;
 	double cache_ttl; // difftime() returns double
 	bool flush_cache_if_too_old();
+	
+	struct ipuser_POD_pair{
+		char ip[256]; // be large even for IPv6 addresses... :-)
+		char user[256];
+	} * ipuser_shared_pair;
+
+	struct userfg_POD_pair{
+		char user[256];
+		int fg;
+	} * userfg_shared_pair;
 };
 
 // IMPLEMENTATION
@@ -83,8 +89,8 @@ AuthPlugin *sqlauthcreate(ConfigVar & definition)
 }
 
 int sqlauthinstance::quit() {
-	ipuser_cache->clear();
-	userfg_cache->clear();
+	ipuser_cache.clear();
+	userfg_cache.clear();
 	return 0;
 }
 
@@ -98,27 +104,41 @@ int sqlauthinstance::init(void* args) {
 	cache_ttl = atof(cv["sqlauthcachettl"].c_str());
 	cache_timestamp = time(NULL); 
 
+	/* 
+	 * Shared memory management:
+	 * non-POD C++ objects canot be shared.
+	 * KISS: Share only a single ip=>user and a single user=>fg pair 
+	 * at a time to avoid implementing our own (inefficient) lookup 
+	 * algorithm.
+	 *
+	 */
+
 	int fd;
 	
 	fd = shm_open(
-		DG_SQLAUTH_IPUSER_CACHE_SHMNAME,
+		"dg_shared_ipuser_pair",
 		O_RDWR | O_CREAT,
-		0777
+		0666
 	);
-	ftruncate(fd, DG_SQLAUTH_CACHESZ);
-	ipuser_cache = (std::map <std::string, std::string> *) mmap(
-		0, DG_SQLAUTH_CACHESZ, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0
+	ftruncate(fd, sizeof(ipuser_POD_pair)); 
+	ipuser_shared_pair = (ipuser_POD_pair *) mmap(
+		0, sizeof(ipuser_POD_pair), PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0
 	);
 
 	fd = shm_open(
-		DG_SQLAUTH_USERFG_CACHE_SHMNAME,
+		"dg_shared_userfg_pair",
 		O_RDWR | O_CREAT,
-		0777
+		0666
 	);
-	ftruncate(fd, DG_SQLAUTH_CACHESZ);
-	userfg_cache = (std::map <std::string, int> *) mmap(
-		0, DG_SQLAUTH_CACHESZ, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0
+	ftruncate(fd, sizeof(userfg_POD_pair));
+	userfg_shared_pair = (userfg_POD_pair *) mmap(
+		0, sizeof(userfg_POD_pair), PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0
 	);
+
+	strcpy(ipuser_shared_pair->ip, "0.0.0.0");
+	strcpy(ipuser_shared_pair->user, "__nobody__");
+	strcpy(userfg_shared_pair->user, "__nobody__");
+	userfg_shared_pair->fg   = 0;
 
 	return 0;
 }
@@ -138,30 +158,41 @@ int sqlauthinstance::identify(Socket& peercon, Socket& proxycon, HTTPHeader &h, 
 	} else {
 		ipstring = peercon.getPeerIP();
 	}
-	
-	if (ipuser_cache->count(ipstring)) { 
-		string = (*ipuser_cache)[ipstring];
+
+	// put the shared pair into the cache
+	std::string shared_ipstring(ipuser_shared_pair->ip);
+	std::string shared_username(ipuser_shared_pair->user);
+	ipuser_cache[shared_ipstring] = shared_username;
+
+	if (ipuser_cache.count(ipstring)) { 
+		string = ipuser_cache[ipstring];
 		return DGAUTH_OK;
-	} else { // query the db
-		String sql_query( cv["sqlauthipuserquery"] );
-		sql_query.replaceall("-IPADDRESS-", ipstring.c_str());
-		try {
-			soci::session sql(cv["sqlauthdb"], connection_string);
-			soci::indicator ind;
-			sql << sql_query, soci::into(string, ind);
-			if ( ind == soci::i_ok ) {
-				(*ipuser_cache)[ipstring] = string;
-				return DGAUTH_OK;
-			} else {
-				return DGAUTH_NOMATCH;
-			}
+	} 
+	
+	// query the db
+	String sql_query( cv["sqlauthipuserquery"] );
+	sql_query.replaceall("-IPADDRESS-", ipstring.c_str());
+	try {
+		std::cout << time(NULL) << ":" << sql_query << std::endl; // DEBUG
+		soci::session sql(cv["sqlauthdb"], connection_string);
+		soci::indicator ind;
+		sql << sql_query, soci::into(string, ind);
+		if ( ind == soci::i_ok ) {
+			// put the result in per-process cache
+			ipuser_cache[ipstring] = string;
+			// and in the shared pair
+			strcpy(ipuser_shared_pair->ip, ipstring.c_str());
+			strcpy(ipuser_shared_pair->user, string.c_str());
+			return DGAUTH_OK;
+		} else {
+			return DGAUTH_NOMATCH;
 		}
-		catch (std::exception const &e) {
-			if (!is_daemonised) 
-				std::cerr << "sqlauthinstance::identify(): " << e.what() << '\n';
-			syslog(LOG_ERR, "sqlauthinstance::identify(): %s", e.what());
-			return DGAUTH_NOMATCH; // allow other plugins to work
-		}
+	}
+	catch (std::exception const &e) {
+		if (!is_daemonised) 
+			std::cerr << "sqlauthinstance::identify(): " << e.what() << '\n';
+		syslog(LOG_ERR, "sqlauthinstance::identify(): %s", e.what());
+		return DGAUTH_NOMATCH; // allow other plugins to work
 	}
 }
 
@@ -169,15 +200,21 @@ int sqlauthinstance::determineGroup(std::string &user, int &fg)
 {
 	flush_cache_if_too_old();
 
-	if (userfg_cache->count(user)) {
-		fg = (*userfg_cache)[user];
+	// put the shared pair into the cache
+	std::string shared_user_cppstr(userfg_shared_pair->user); 
+	userfg_cache[shared_user_cppstr] = userfg_shared_pair->fg;
+
+	if (userfg_cache.count(user)) {
+		fg = userfg_cache[user];
 		return DGAUTH_OK;
 	}		
 
+	// query the db
 	String sql_query( cv["sqlauthusergroupquery"] );
 	sql_query.replaceall("-USERNAME-", user.c_str());
 	std::vector<std::string> sqlgroups(32); // will be shrinked
 	try {
+		std::cout << time(NULL) << ":" << sql_query << std::endl; // DEBUG
 		soci::session sql(cv["sqlauthdb"], connection_string);
 		sql << sql_query, soci::into(sqlgroups);
 	}
@@ -193,7 +230,11 @@ int sqlauthinstance::determineGroup(std::string &user, int &fg)
 			fg = filtername.after("filter").toInteger();
 				if (fg > 0) {
 					fg--;
-					(*userfg_cache)[user] = fg;
+					// put the result in the per-process cache
+					userfg_cache[user] = fg;
+					// and in the shared pair
+					strcpy(userfg_shared_pair->user, user.c_str());
+					userfg_shared_pair->fg = fg;
 					return DGAUTH_OK;
 				}
 			}
@@ -204,8 +245,8 @@ int sqlauthinstance::determineGroup(std::string &user, int &fg)
 bool sqlauthinstance::flush_cache_if_too_old()
 {
 	if (difftime(time(NULL), cache_timestamp) > cache_ttl) {
-		ipuser_cache->clear();
-		userfg_cache->clear();
+		ipuser_cache.clear();
+		userfg_cache.clear();
 		cache_timestamp = time(NULL);
 		return true;
 	}
