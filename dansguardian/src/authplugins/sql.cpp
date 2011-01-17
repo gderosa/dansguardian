@@ -47,8 +47,8 @@ using namespace boost::interprocess;
 typedef std::string ipType;
 typedef std::string userType;
 typedef int fgType;
-typedef std::pair<const ipType, userType> ipuserPair;
-typedef std::pair<const userType, fgType> userfgPair;
+typedef std::pair<ipType, userType> ipuserPair;
+typedef std::pair<userType, fgType> userfgPair;
 typedef allocator<ipuserPair, managed_shared_memory::segment_manager>
 	ipuserAllocator;
 typedef allocator<userfgPair, managed_shared_memory::segment_manager>
@@ -84,6 +84,8 @@ protected:
 private:
 	managed_shared_memory ipuser_segment;
 	managed_shared_memory userfg_segment;
+	ipuserAllocator ipuser_alloca;
+	userfgAllocator userfg_alloca;
 };
 
 // IMPLEMENTATION
@@ -97,7 +99,9 @@ AuthPlugin *sqlauthcreate(ConfigVar & definition)
 sqlauthinstance::sqlauthinstance(ConfigVar &definition):
 	AuthPlugin(definition),
 	ipuser_segment(open_or_create, "dg_sqlauth_ipuser", 65536),
-	userfg_segment(open_or_create, "dg_sqlauth_userfg", 65536)
+	userfg_segment(open_or_create, "dg_sqlauth_userfg", 65536),
+	ipuser_alloca(ipuser_segment.get_segment_manager()),
+	userfg_alloca(userfg_segment.get_segment_manager())
 {
 	// Keep credentials for the whole of a connection - IP isn't going to 
 	// change. Not quite true - what about downstream proxy with 
@@ -121,18 +125,14 @@ int sqlauthinstance::init(void* args) {
 	cache_ttl = atof(cv["sqlauthcachettl"].c_str());
 	cache_timestamp = time(NULL); 
 
-	ipuserAllocator ipuser_alloca (ipuser_segment.get_segment_manager());
-	userfgAllocator userfg_alloca (userfg_segment.get_segment_manager());
-
 	ipuser_cache =
-      ipuser_segment.construct<ipuserMap>("ipuser_cache")      //object name
+		ipuser_segment.construct<ipuserMap>("ipuser_cache_")      //object name
                                  (std::less<ipType>() //first  ctor parameter
                                  ,ipuser_alloca);     //second ctor parameter
 	userfg_cache =
-      userfg_segment.construct<userfgMap>("userfg_cache")      //object name
+		userfg_segment.construct<userfgMap>("userfg_cache_")      //object name
                                  (std::less<userType>() //first  ctor parameter
                                  ,userfg_alloca);     //second ctor parameter
-
 	return 0;
 }
 
