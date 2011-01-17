@@ -81,7 +81,6 @@ protected:
 	time_t cache_timestamp;
 	double cache_ttl; // difftime() returns double
 	bool flush_cache_if_too_old();
-private:
 	managed_shared_memory ipuser_segment;
 	managed_shared_memory userfg_segment;
 	ipuserAllocator ipuser_alloca;
@@ -98,8 +97,8 @@ AuthPlugin *sqlauthcreate(ConfigVar & definition)
 
 sqlauthinstance::sqlauthinstance(ConfigVar &definition):
 	AuthPlugin(definition),
-	ipuser_segment(open_or_create, "dg_sqlauth_ipuser", 65536),
-	userfg_segment(open_or_create, "dg_sqlauth_userfg", 65536),
+	ipuser_segment(create_only, "dg_sqlauth_ipuser", 65536),
+	userfg_segment(create_only, "dg_sqlauth_userfg", 65536),
 	ipuser_alloca(ipuser_segment.get_segment_manager()),
 	userfg_alloca(userfg_segment.get_segment_manager())
 {
@@ -126,11 +125,11 @@ int sqlauthinstance::init(void* args) {
 	cache_timestamp = time(NULL); 
 
 	ipuser_cache =
-		ipuser_segment.construct<ipuserMap>("ipuser_cache_")      //object name
+		ipuser_segment.construct<ipuserMap>("ipuser_cache")      //object name
                                  (std::less<ipType>() //first  ctor parameter
                                  ,ipuser_alloca);     //second ctor parameter
 	userfg_cache =
-		userfg_segment.construct<userfgMap>("userfg_cache_")      //object name
+		userfg_segment.construct<userfgMap>("userfg_cache")      //object name
                                  (std::less<userType>() //first  ctor parameter
                                  ,userfg_alloca);     //second ctor parameter
 	return 0;
