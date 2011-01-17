@@ -35,22 +35,38 @@
 
 #include <soci/soci.h>
 
+// http://www.boost.org/doc/libs/1_45_0/doc/html/interprocess/quick_guide.html#interprocess.quick_guide.qg_interprocess_map
+#include <boost/interprocess/managed_shared_memory.hpp>
+#include <boost/interprocess/containers/map.hpp>
+#include <boost/interprocess/allocators/allocator.hpp>
+#include <functional>
+#include <utility>
+
+using namespace boost::interprocess;
+
+typedef std::string ipType;
+typedef std::string userType;
+typedef int fgType;
+typedef std::pair<const ipType, userType> ipuserPair;
+typedef std::pair<const userType, fgType> userfgPair;
+typedef allocator<ipuserPair, managed_shared_memory::segment_manager>
+	ipuserAllocator;
+typedef allocator<userfgPair, managed_shared_memory::segment_manager>
+	userfgAllocator;
+typedef map<ipType, userType, std::less<ipType>, ipuserAllocator> ipuserMap;
+typedef map<userType, fgType, std::less<userType>, userfgAllocator> userfgMap;
+
+
 // GLOBALS
 extern bool is_daemonised;
 extern OptionContainer o;
+
 
 // class name is relevant!
 class sqlauthinstance:public AuthPlugin
 {
 public:
-	// Keep credentials for the whole of a connection - IP isn't going to 
-	// change. Not quite true - what about downstream proxy with 
-	// x-forwarded-for?
-	sqlauthinstance(ConfigVar &definition):AuthPlugin(definition)
-	{
-		if (!o.use_xforwardedfor)
-			is_connection_based = true;
-	};
+	sqlauthinstance(ConfigVar &definition);
 
 	int identify(Socket& peercon, Socket& proxycon, HTTPHeader &h, std::string &string);
 	int determineGroup(std::string &user, int &fg);
@@ -65,6 +81,9 @@ protected:
 	time_t cache_timestamp;
 	double cache_ttl; // difftime() returns double
 	bool flush_cache_if_too_old();
+private:
+	managed_shared_memory ipuser_segment;
+	managed_shared_memory userfg_segment;
 };
 
 // IMPLEMENTATION
@@ -75,9 +94,20 @@ AuthPlugin *sqlauthcreate(ConfigVar & definition)
 	return new sqlauthinstance(definition);
 }
 
+sqlauthinstance::sqlauthinstance(ConfigVar &definition):
+	AuthPlugin(definition),
+	ipuser_segment(open_or_create, "dg_sqlauth_ipuser", 65536),
+	userfg_segment(open_or_create, "dg_sqlauth_userfg", 65536)
+{
+	// Keep credentials for the whole of a connection - IP isn't going to 
+	// change. Not quite true - what about downstream proxy with 
+	// x-forwarded-for?
+	if (!o.use_xforwardedfor)
+		is_connection_based = true;
+}
+
+
 int sqlauthinstance::quit() {
-	ipuser_cache.clear();
-	userfg_cache.clear();
 	return 0;
 }
 
@@ -90,6 +120,9 @@ int sqlauthinstance::init(void* args) {
 	groupmap.readVar(cv["sqlauthgroups"].c_str(), "=");
 	cache_ttl = atof(cv["sqlauthcachettl"].c_str());
 	cache_timestamp = time(NULL); 
+
+
+
 	return 0;
 }
 
