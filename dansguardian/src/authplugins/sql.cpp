@@ -168,7 +168,8 @@ int sqlauthinstance::identify(Socket& peercon, Socket& proxycon, HTTPHeader &h, 
 		soci::indicator ind;
 		sql << sql_query, soci::into(string, ind);
 		if ( ind == soci::i_ok ) {
-			(*ipuser_cache)[ipstring] = string;
+			//(*ipuser_cache)[ipstring] = string;
+			ipuser_cache->insert(ipuserPair(ipstring, string));
 			return DGAUTH_OK;
 		} else {
 			return DGAUTH_NOMATCH;
@@ -214,7 +215,8 @@ int sqlauthinstance::determineGroup(std::string &user, int &fg)
 			fg = filtername.after("filter").toInteger();
 				if (fg > 0) {
 					fg--;
-					(*userfg_cache)[user] = fg;
+					//(*userfg_cache)[user] = fg;
+					userfg_cache->insert(userfgPair(user, fg));
 					return DGAUTH_OK;
 				}
 			}
