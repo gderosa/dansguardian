@@ -44,17 +44,25 @@
 
 using namespace boost::interprocess;
 
-typedef std::string ipType;
-typedef std::string userType;
-typedef int fgType;
-typedef std::pair<ipType, userType> ipuserPair;
-typedef std::pair<userType, fgType> userfgPair;
+typedef std::pair<const std::string, std::string> ipuserPair;
+typedef std::pair<const std::string, int> userfgPair;
+
 typedef allocator<ipuserPair, managed_shared_memory::segment_manager>
 	ipuserAllocator;
 typedef allocator<userfgPair, managed_shared_memory::segment_manager>
 	userfgAllocator;
-typedef map<ipType, userType, std::less<ipType>, ipuserAllocator> ipuserMap;
-typedef map<userType, fgType, std::less<userType>, userfgAllocator> userfgMap;
+
+typedef map<
+	std::string, std::string, 
+	std::less<std::string>, 
+	ipuserAllocator
+> ipuserMap;
+
+typedef map<
+	std::string, int, 
+	std::less<std::string>, 
+	userfgAllocator
+> userfgMap;
 
 
 // GLOBALS
@@ -83,8 +91,8 @@ protected:
 	bool flush_cache_if_too_old();
 	managed_shared_memory ipuser_segment;
 	managed_shared_memory userfg_segment;
-	ipuserAllocator ipuser_alloca;
-	userfgAllocator userfg_alloca;
+	ipuserAllocator * ipuser_alloca;
+	userfgAllocator * userfg_alloca;
 };
 
 // IMPLEMENTATION
@@ -98,9 +106,7 @@ AuthPlugin *sqlauthcreate(ConfigVar & definition)
 sqlauthinstance::sqlauthinstance(ConfigVar &definition):
 	AuthPlugin(definition),
 	ipuser_segment(create_only, "dg_sqlauth_ipuser", 65536),
-	userfg_segment(create_only, "dg_sqlauth_userfg", 65536),
-	ipuser_alloca(ipuser_segment.get_segment_manager()),
-	userfg_alloca(userfg_segment.get_segment_manager())
+	userfg_segment(create_only, "dg_sqlauth_userfg", 65536)
 {
 	// Keep credentials for the whole of a connection - IP isn't going to 
 	// change. Not quite true - what about downstream proxy with 
@@ -111,6 +117,10 @@ sqlauthinstance::sqlauthinstance(ConfigVar &definition):
 
 
 int sqlauthinstance::quit() {
+	delete ipuser_alloca;
+	delete userfg_alloca;
+	shared_memory_object::remove("dg_sqlauth_ipuser");
+	shared_memory_object::remove("dg_sqlauth_userfg");
 	return 0;
 }
 
@@ -124,14 +134,17 @@ int sqlauthinstance::init(void* args) {
 	cache_ttl = atof(cv["sqlauthcachettl"].c_str());
 	cache_timestamp = time(NULL); 
 
+	ipuser_alloca = new ipuserAllocator(ipuser_segment.get_segment_manager());
+	userfg_alloca = new userfgAllocator(userfg_segment.get_segment_manager());
+
 	ipuser_cache =
-		ipuser_segment.construct<ipuserMap>("ipuser_cache")      //object name
-                                 (std::less<ipType>() //first  ctor parameter
-                                 ,ipuser_alloca);     //second ctor parameter
+		ipuser_segment.construct<ipuserMap>("ipuser_cache") //object name
+			(std::less<std::string>() //first  ctor parameter
+			, *ipuser_alloca);          //second ctor parameter
 	userfg_cache =
 		userfg_segment.construct<userfgMap>("userfg_cache")      //object name
-                                 (std::less<userType>() //first  ctor parameter
-                                 ,userfg_alloca);     //second ctor parameter
+			(std::less<std::string>() //first  ctor parameter
+			, *userfg_alloca);     //second ctor parameter
 	return 0;
 }
 
