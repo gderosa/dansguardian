@@ -7,22 +7,7 @@
 #include <fstream>
 #include <sstream>
 
-// stores key-value pairs with timestamps
-template <class KeyType, class ValueType>
-class SharedCache 
-{
-public:
-	SharedCache(std::string const& filename_); 
-	~SharedCache(); 
-	std::string filename;
-	bool store(std::pair <KeyType, ValueType> const& pair);
-protected:
-	bool file_exists(std::string const& filename_);
-	bool file_exists();
-	bool update(std::pair <KeyType, ValueType> const& pair);
-	bool append_row(
-	std::ofstream const& of, std::pair <KeyType, ValueType> const& pair);
-};
+#include "SharedCache.hpp"
 
 template <class KeyType, class ValueType>
 SharedCache<KeyType, ValueType>::SharedCache(std::string const& filename_){
@@ -52,14 +37,6 @@ bool SharedCache<KeyType, ValueType>::store(
 }
 
 template <class KeyType, class ValueType>
-bool SharedCache<KeyType, ValueType>::update(
-		std::pair <KeyType, ValueType> const& pair
-)
-{
-	return true;
-}
-
-template <class KeyType, class ValueType>
 bool SharedCache<KeyType, ValueType>::append_row(
 	std::ofstream const& of, 
 	std::pair <KeyType, ValueType> const& pair
@@ -79,19 +56,30 @@ bool SharedCache<KeyType, ValueType>::update(
 {
 	std::ifstream ifs;
 	std::ostringstream tmps;
-	ofstream oflocks;
+	std::ofstream oflocks;
 	oflocks.open(strcat(filename.c_str(), ".lock"));
-	ifs.open(filename);
-	while(ifs.good()) {
+	ifs.open(filename.c_str()); 
+	char linebuf[1024];
+	while( !ifs.getline(linebuf, 1024).eof() ) { 
+		std::istringstream linestream(linebuf);
 		KeyType key;
 		ValueType value;
 		time_t timestamp;
-		ifs >> key >> value >> timestamp;
+		linestream >> key >> value >> timestamp;
 		if (key != pair.first()) 
 			tmps << key << value << timestamp << '\n';
 	}
 	ifs.close();
 	std::ofstream ofs;
+	ofs.open(filename.c_str()); 
+	ofs << tmps;
+	ofs << 
+		pair.first()  << ' '   << 
+		pair.second() << ' '   << 
+		time(NULL)    << '\n'  ;
+	ofs.close();
+	oflocks.close();
+	remove(strcat(filename.c_str(), ".lock")); 
 }
 
 template <class KeyType, class ValueType>
