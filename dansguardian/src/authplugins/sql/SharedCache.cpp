@@ -77,12 +77,21 @@ bool SharedCache<KeyType, ValueType>::update(
 	std::pair <KeyType, ValueType> const& pair		
 )
 {
-	ifstream ifs;
-	ofstream ofs;
+	std::ifstream ifs;
+	std::ostringstream tmps;
 	ofstream oflocks;
 	oflocks.open(strcat(filename.c_str(), ".lock"));
 	ifs.open(filename);
-	ofs.open(strcat(filename.c_str(), ".new"));
+	while(ifs.good()) {
+		KeyType key;
+		ValueType value;
+		time_t timestamp;
+		ifs >> key >> value >> timestamp;
+		if (key != pair.first()) 
+			tmps << key << value << timestamp << '\n';
+	}
+	ifs.close();
+	std::ofstream ofs;
 }
 
 template <class KeyType, class ValueType>
