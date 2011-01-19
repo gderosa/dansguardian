@@ -1,58 +1,89 @@
 #include <ctime>
 #include <cstdio>
+#include <cstring>
 #include <sys/stat.h>
+
+#include <string>
+#include <fstream>
 
 // stores key-value pairs with timestamps
 template <class KeyType, class ValueType>
-class SharedCache
+class SharedCache 
 {
 public:
-	SharedCache(const std::string & filename_); 
-	~SharedCache() {};
+	SharedCache(std::string const& filename_); 
+	~SharedCache(); 
 	std::string filename;
-	bool store(const std::pair <KeyType, ValueType> pair);
+	bool store(std::pair <KeyType, ValueType> const& pair);
 protected:
+	bool file_exists(std::string const& filename_);
 	bool file_exists();
-	update(const std::pair <KeyType, ValueType> pair);
-	append_row(
-		const std::ofstream & of, const std::pair <KeyType, ValueType> & pair);
-}
+	bool update(std::pair <KeyType, ValueType> const& pair);
+	bool append_row(
+	std::ofstream const& of, std::pair <KeyType, ValueType> const& pair);
+};
 
-SharedCache::SharedCache(const std::string & filename_){
+template <class KeyType, class ValueType>
+SharedCache<KeyType, ValueType>::SharedCache(std::string const& filename_){
 	filename = filename_;
 }
 
-bool SharedCache::store(const std::pair <KeyType, ValueType> & pair) {
-	if file_exists() {
-		return update(std::pair <KeyType, ValueType> pair);
+template <class KeyType, class ValueType>
+bool SharedCache<KeyType, ValueType>::store(
+		std::pair <KeyType, ValueType> const& pair
+) 
+{
+	if (file_exists()) {
+		return update(pair);
 	} else {
-		if file_exists(filename + ".lock")
+		if (file_exists(filename + ".lock"))
 			return false; // silently fail, don't wait
-		std::ofstream f, flock;
-		flock.open(filename + ".lock");
-		f.open(filename);
+		std::ofstream f;
+		std::ofstream flock;
+		flock.open(strcat(filename.c_str(), ".lock"));
+		f.open(filename.c_str());
 		append_row(f, pair);
 		f.close();
 		flock.close();
-		remove(filename + ".lock");
+		remove(strcat(filename.c_str(), ".lock"));
 		return true;
 	}
 }
 
+template <class KeyType, class ValueType>
+bool SharedCache<KeyType, ValueType>::update(
+		std::pair <KeyType, ValueType> const& pair
+)
+{
+	return true;
+}
 
-SharedCache::append_row(
-	const std::ofstream &of, 
-	const std::pair <KeyType, ValueType> pair
+template <class KeyType, class ValueType>
+bool SharedCache<KeyType, ValueType>::append_row(
+	std::ofstream const& of, 
+	std::pair <KeyType, ValueType> const& pair
 )
 {
 	of << 
 		pair.first()  << ' '  << 
 		pair.second() << ' '  << 
 		time(NULL)    << '\n' ;  
+	return true;
 }
 
-bool SharedCache::file_exists(std::string filename_=filename) {
+template <class KeyType, class ValueType>
+bool SharedCache<KeyType, ValueType>::file_exists(
+		std::string const& filename_
+) 
+{
 	struct stat st;
-	return bool( stat(filename.c_str(), &st) ); 
+	return bool( stat(filename_.c_str(), &st) ); 
 }
+
+template <class KeyType, class ValueType>
+bool SharedCache<KeyType, ValueType>::file_exists() 
+{
+	return file_exists(filename);
+}
+
 
