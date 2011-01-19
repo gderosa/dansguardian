@@ -59,7 +59,7 @@ NTLMAUTH_SOURCE =
 endif
 
 if ENABLE_SQLAUTH
-SQLAUTH_SOURCE = authplugins/sql.cpp
+SQLAUTH_SOURCE = authplugins/sql.cpp authplugins/sql/SharedCache.cpp
 else
 SQLAUTH_SOURCE =
 endif
