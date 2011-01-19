@@ -5,6 +5,7 @@
 
 #include <string>
 #include <fstream>
+#include <sstream>
 
 // stores key-value pairs with timestamps
 template <class KeyType, class ValueType>
@@ -69,6 +70,19 @@ bool SharedCache<KeyType, ValueType>::append_row(
 		pair.second() << ' '  << 
 		time(NULL)    << '\n' ;  
 	return true;
+}
+
+template <class KeyType, class ValueType>
+bool SharedCache<KeyType, ValueType>::update(
+	std::pair <KeyType, ValueType> const& pair		
+)
+{
+	ifstream ifs;
+	ofstream ofs;
+	ofstream oflocks;
+	oflocks.open(strcat(filename.c_str(), ".lock"));
+	ifs.open(filename);
+	ofs.open(strcat(filename.c_str(), ".new"));
 }
 
 template <class KeyType, class ValueType>
