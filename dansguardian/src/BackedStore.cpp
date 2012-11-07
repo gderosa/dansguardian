@@ -1,20 +1,6 @@
-//Please refer to http://dansguardian.org/?page=copyright2
-//for the license for this code.
-//For support go to http://groups.yahoo.com/group/dansguardian
-
-//  This program is free software; you can redistribute it and/or modify
-//  it under the terms of the GNU General Public License as published by
-//  the Free Software Foundation; either version 2 of the License, or
-//  (at your option) any later version.
-//
-//  This program is distributed in the hope that it will be useful,
-//  but WITHOUT ANY WARRANTY; without even the implied warranty of
-//  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-//  GNU General Public License for more details.
-//
-//  You should have received a copy of the GNU General Public License
-//  along with this program; if not, write to the Free Software
-//  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+// For all support, instructions and copyright go to:
+// http://dansguardian.org/
+// Released under the GPL v2, with the OpenSSL exception described in the README file.
 
 
 // INCLUDES
@@ -36,6 +22,7 @@
 
 #include <unistd.h>
 
+#include <sys/stat.h>
 #include <sys/mman.h>
 #include <sys/time.h>
 
@@ -72,14 +59,14 @@ BackedStore::~BackedStore()
 		while (rc < 0 && errno == EINTR);
 #ifdef DGDEBUG
 		if (rc < 0)
-			std::cout << "BackedStore: cannot close temp file fd: " << strerror(errno) << std::endl;
+			std::cout << "BackedStore: cannot close temp file fd: " << ErrStr() << std::endl;
 #endif
 		rc = unlink(filename);
 #ifdef DGDEBUG
 		if (rc < 0)
-			std::cout << "BackedStore: cannot delete temp file: " << strerror(errno) << std::endl;
+			std::cout << "BackedStore: cannot delete temp file: " << ErrStr() << std::endl;
 #endif
-		delete filename;
+		free(filename);
 	}
 }
 
@@ -111,23 +98,24 @@ bool BackedStore::append(const char *data, size_t len)
 			// Open temp file, dump current data in there,
 			// leave code below this if{} to write current
 			// data to the file as well
-			filename = new char[tempdir.length() + 14];
-			strncpy(filename, tempdir.c_str(), tempdir.length());
-			strncpy(filename + tempdir.length(), "/__dgbsXXXXXX", 13);
-			filename[tempdir.length() + 13] = '\0';
+			std::string filename_str = tempdir + "/__dgbsXXXXXX";
+			filename = const_cast<char*>(filename_str.c_str());
 #ifdef DGDEBUG
 			std::cout << "BackedStore: filename template: " << filename << std::endl;
 #endif
+			umask(S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP);
 			if ((fd = mkstemp(filename)) < 0)
 			{
 				std::ostringstream ss;
-				ss << "BackedStore could not create temp file: " << strerror(errno);
-				delete filename;
+				ss << "BackedStore could not create temp file: " << ErrStr();
+				free(filename);
 				throw std::runtime_error(ss.str().c_str());
 			}
 #ifdef DGDEBUG
 			std::cout << "BackedStore: filename: " << filename << std::endl;
 #endif
+			free(filename);
+
 			size_t bytes_written = 0;
 			ssize_t rc = 0;
 			do
@@ -140,7 +128,7 @@ bool BackedStore::append(const char *data, size_t len)
 			if (rc < 0 && errno != EINTR)
 			{
 				std::ostringstream ss;
-				ss << "BackedStore could not dump RAM buffer to temp file: " << strerror(errno);
+				ss << "BackedStore could not dump RAM buffer to temp file: " << ErrStr();
 				throw std::runtime_error(ss.str().c_str());
 			}
 			length = rambuf.size();
@@ -177,7 +165,7 @@ bool BackedStore::append(const char *data, size_t len)
 		if (rc < 0 && errno != EINTR)
 		{
 			std::ostringstream ss;
-			ss << "BackedStore could not dump RAM buffer to temp file: " << strerror(errno);
+			ss << "BackedStore could not dump RAM buffer to temp file: " << ErrStr();
 			throw std::runtime_error(ss.str().c_str());
 		}
 		length += len;
@@ -209,7 +197,7 @@ void BackedStore::finalise()
 	if (map == MAP_FAILED)
 	{
 		std::ostringstream ss;
-		ss << "BackedStore could not mmap() temp file: " << strerror(errno);
+		ss << "BackedStore could not mmap() temp file: " << ErrStr();
 		throw std::runtime_error(ss.str().c_str());
 	}
 }
@@ -263,7 +251,7 @@ std::string BackedStore::store(const char *prefix)
 			// Failure - but ignore EXDEV, as we can "recover"
 			// from that by taking a different approach
 			std::ostringstream ss;
-			ss << "BackedStore could not create link to existing temp file: " << strerror(errno);
+			ss << "BackedStore could not create link to existing temp file: " << ErrStr();
 			throw std::runtime_error(ss.str().c_str());
 		}
 	}
@@ -274,19 +262,17 @@ std::string BackedStore::store(const char *prefix)
 	// Include timestamp in the name for added uniqueness
 	std::ostringstream timedprefix;
 	timedprefix << prefix << '-' << time(NULL) << '-' << std::flush;
-	std::string pfx(timedprefix.str());
-	char storedname[pfx.length() + 7];
-	strncpy(storedname, pfx.c_str(), pfx.length());
-	strncpy(storedname + pfx.length(), "XXXXXX", 6);
-	storedname[pfx.length() + 6] = '\0';
+	std::string storedname_str(timedprefix.str() + "XXXXXX");
+	char *storedname = const_cast<char*>(storedname_str.c_str());
 #ifdef DGDEBUG
 	std::cout << "BackedStore: storedname template: " << storedname << std::endl;
 #endif
 	int storefd;
+	umask(S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP);
 	if ((storefd = mkstemp(storedname)) < 0)
 	{
 		std::ostringstream ss;
-		ss << "BackedStore could not create stored file: " << strerror(errno);
+		ss << "BackedStore could not create stored file: " << ErrStr();
 		throw std::runtime_error(ss.str().c_str());
 	}
 #ifdef DGDEBUG
@@ -323,7 +309,7 @@ std::string BackedStore::store(const char *prefix)
 	if (rc < 0 && errno != EINTR)
 	{
 		std::ostringstream ss;
-		ss << "BackedStore could not dump RAM buffer to temp file: " << strerror(errno);
+		ss << "BackedStore could not dump RAM buffer to temp file: " << ErrStr();
 		do
 		{
 			rc = close(storefd);

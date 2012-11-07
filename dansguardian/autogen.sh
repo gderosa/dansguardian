@@ -1,2 +1,3 @@
 #! /bin/sh
-aclocal && aclocal && autoheader && automake --add-missing --copy && autoconf
+set -x
+aclocal -I m4 && autoheader && automake --add-missing --copy && autoconf

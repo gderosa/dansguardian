@@ -1,6 +1,6 @@
 <html>
 	<head>
-	<title>Downloading -FILENAME- (-FILESIZE- bytes)</title>
+	<title>T&eacute;l&eacute;chargement de -FILENAME- (-FILESIZE- octets)</title>
 	<script	language='javascript'>
 	<!--
 		var scanned = 1;
@@ -54,9 +54,9 @@
 				var sofar = (got/fs)*16;
 				for (var i = 1; i <=sofar; i++)
 					document.getElementById('progress'+i).style.backgroundColor = 'blue';
-				msg = Math.round((got/-FILESIZE-)*100)+"%, time remaining: "+timestring(Math.round((fs-got)/speed))+"; "+filesizestring(speed)+"/s; total downloaded: "+filesizestring(got);
+				msg = Math.round((got/-FILESIZE-)*100)+"%, temps restant : "+timestring(Math.round((fs-got)/speed))+"; "+filesizestring(speed)+"/s; total t&eacute;l&eacute;charg&eacute; : "+filesizestring(got);
 			} else {
-				msg = "Time remaining: unknown; "+filesizestring(speed)+"/s; total downloaded: "+filesizestring(got);
+				msg = "Temps restant : inconnu; "+filesizestring(speed)+"/s; total t&eacute;l&eacute;charg&eacute; : "+filesizestring(got);
 			}
 			document.getElementById('message1').innerHTML = msg;
 		}
@@ -64,17 +64,17 @@
 			for (var i = 1; i <=16; i++)
 				document.getElementById('progress'+i).style.backgroundColor = 'blue';
 			if (scanned == 1) {
-				var msg = "Download complete! Now scanning...";
+				var msg = "T&eacute;l&eacute;chargement termin&eacute;. Inspection des logiciels malveillants en cours ...";
 				document.getElementById('message1').innerHTML = msg;
 			}
 		}
 		function downloadlink(rawlink, prettylink, type) {
 			if (type == 0)
-				var msg = "File scanned";
+				var msg = "Fichier inspect&eacute;";
 			else if (type == 1)
-				var msg = "File downloaded, but not scanned due to size";
+				var msg = "Fichier t&eacute;l&eacute;charg&eacute;, mais non inspect&eacute; car trop volumineux";
 			else if (type == 2)
-				var msg = "File too large to cache, please download directly";
+				var msg = "Fichier trop volumineux pour &ecirc;tre mis en cache, veuillez le t&eacute;l&eacute;charg&eacute;r directement";
 			document.getElementById('message1').innerHTML = msg;
 			if (type != 2)
 				document.getElementById('message2').innerHTML = "<a href='"+rawlink+"'>"+prettylink+"</a>";
@@ -84,7 +84,7 @@
 		}
 		function downloadwarning(sizelimit) {
 			scanned = 0;
-			document.getElementById('message2').innerHTML = "Warning: File too large for content scanning. If you suspect that this file is larger than "+filesizestring(sizelimit)+", refresh this page to download directly.";
+			document.getElementById('message2').innerHTML = "Avertissement : fichier trop volumineux pour &egrave;tre inspect&eacute;. Si vous pensez que le fichier est plus volumineux que "+filesizestring(sizelimit)+", raffra&icirc;chissez la page pour le t&eacute;l&eacute;charger directement.";
 		}
 	//-->
 	</script>

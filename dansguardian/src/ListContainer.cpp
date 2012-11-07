@@ -1,24 +1,8 @@
 // ListContainer - class for both item and phrase lists
 
-//Please refer to http://dansguardian.org/?page=copyright
-//for the license for this code.
-//Written by Daniel Barron (daniel@//jadeb/.com).
-//For support go to http://groups.yahoo.com/group/dansguardian
-
-//  This program is free software; you can redistribute it and/or modify
-//  it under the terms of the GNU General Public License as published by
-//  the Free Software Foundation; either version 2 of the License, or
-//  (at your option) any later version.
-//
-//  This program is distributed in the hope that it will be useful,
-//  but WITHOUT ANY WARRANTY; without even the implied warranty of
-//  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-//  GNU General Public License for more details.
-//
-//  You should have received a copy of the GNU General Public License
-//  along with this program; if not, write to the Free Software
-//  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
-
+// For all support, instructions and copyright go to:
+// http://dansguardian.org/
+// Released under the GPL v2, with the OpenSSL exception described in the README file.
 
 // INCLUDES
 
@@ -61,7 +45,7 @@ extern OptionContainer o;
 // Constructor - set default values
 ListContainer::ListContainer():refcount(0), parent(false), filedate(0), used(false), bannedpfiledate(0), exceptionpfiledate(0), weightedpfiledate(0),
 	blanketblock(false), blanket_ip_block(false), blanketsslblock(false), blanketssl_ip_block(false),
-	sourceisexception(false), sourcestartswith(false), sourcefilters(0), data(NULL), realgraphdata(NULL), maxchildnodes(0), graphitems(0),
+	sourceisexception(false), sourcestartswith(false), sourcefilters(0), data(NULL), current_graphdata_size(0), realgraphdata(NULL), maxchildnodes(0), graphitems(0),
 	data_length(0), data_memory(0), items(0), isSW(false), issorted(false), graphused(false), force_quick_search(false),
 	/*sthour(0), stmin(0), endhour(0), endmin(0),*/ istimelimited(false)
 {
@@ -893,7 +877,7 @@ bool ListContainer::makeGraph(bool fqs)
 	current_graphdata_size = (GRAPHENTRYSIZE * ((data_length / 3) + 1)) + ROOTOFFSET;
 	realgraphdata = (int*) calloc(current_graphdata_size, sizeof(int));
 	if (realgraphdata == NULL) {
-		syslog(LOG_ERR, "Cannot allocate memory for phrase tree: %s", strerror(errno));
+		syslog(LOG_ERR, "Cannot allocate memory for phrase tree: %s", ErrStr().c_str());
 		return false;
 	}
 	graphitems++;
@@ -917,7 +901,7 @@ bool ListContainer::makeGraph(bool fqs)
 
 	realgraphdata = (int*) realloc(realgraphdata, sizeof(int) * ((GRAPHENTRYSIZE * graphitems) + ROOTOFFSET));
 	if (realgraphdata == NULL) {
-		syslog(LOG_ERR, "Cannot reallocate memory for phrase tree: %s", strerror(errno));
+		syslog(LOG_ERR, "Cannot reallocate memory for phrase tree: %s", ErrStr().c_str());
 		return false;
 	}
 
@@ -1329,7 +1313,7 @@ void ListContainer::graphAdd(String s, const int inx, int item)
 			int new_current_graphdata_size = (GRAPHENTRYSIZE * (graphitems + 256)) + ROOTOFFSET;
 			realgraphdata = (int*) realloc(realgraphdata, sizeof(int) * new_current_graphdata_size);
 			if (realgraphdata == NULL) {
-				syslog(LOG_ERR, "Cannot reallocate memory for phrase tree: %s", strerror(errno));
+				syslog(LOG_ERR, "Cannot reallocate memory for phrase tree: %s", ErrStr().c_str());
 				exit(1);
 			}
 			memset(realgraphdata + current_graphdata_size, 0, sizeof(int) * (new_current_graphdata_size - current_graphdata_size));
@@ -1390,7 +1374,7 @@ void ListContainer::graphAdd(String s, const int inx, int item)
 				int new_current_graphdata_size = (GRAPHENTRYSIZE * (graphitems + 256)) + ROOTOFFSET;
 				realgraphdata = (int*) realloc(realgraphdata, sizeof(int) * new_current_graphdata_size);
 				if (realgraphdata == NULL) {
-					syslog(LOG_ERR, "Cannot reallocate memory for phrase tree: %s", strerror(errno));
+					syslog(LOG_ERR, "Cannot reallocate memory for phrase tree: %s", ErrStr().c_str());
 					exit(1);
 				}
 				memset(realgraphdata + current_graphdata_size, 0, sizeof(int) * (new_current_graphdata_size - current_graphdata_size));
@@ -1654,7 +1638,7 @@ size_t getFileLength(const char *filename)
 	struct stat status;
 	int rc = stat(filename, &status);
 	if (rc < 0)
-		throw std::runtime_error(strerror(errno));
+		throw std::runtime_error(ErrStr());
 	return status.st_size;
 }
 
@@ -1667,7 +1651,7 @@ time_t getFileDate(const char *filename)
 		if (errno == ENOENT)
 			return 0;
 		else
-			throw std::runtime_error(strerror(errno));
+			throw std::runtime_error(ErrStr());
 	}
 	return status.st_mtime;
 }

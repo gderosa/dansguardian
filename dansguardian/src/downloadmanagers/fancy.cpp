@@ -1,19 +1,6 @@
-//Please refer to http://dansguardian.org/?page=copyright2
-//for the license for this code.
-
-//  This program is free software; you can redistribute it and/or modify
-//  it under the terms of the GNU General Public License as published by
-//  the Free Software Foundation; either version 2 of the License, or
-//  (at your option) any later version.
-//
-//  This program is distributed in the hope that it will be useful,
-//  but WITHOUT ANY WARRANTY; without even the implied warranty of
-//  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-//  GNU General Public License for more details.
-//
-//  You should have received a copy of the GNU General Public License
-//  along with this program; if not, write to the Free Software
-//  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+// For all support, instructions and copyright go to:
+// http://dansguardian.org/
+// Released under the GPL v2, with the OpenSSL exception described in the README file.
 
 
 // INCLUDES
@@ -26,6 +13,7 @@
 #include "../HTMLTemplate.hpp"
 #include "../ConnectionHandler.hpp"
 
+#include <string.h>
 #include <syslog.h>
 #include <sys/time.h>
 #include <sys/types.h>
@@ -47,7 +35,7 @@ class fancydm:public DMPlugin
 {
 public:
 	fancydm(ConfigVar & definition):DMPlugin(definition),
-		toobig_unscanned(false), toobig_notdownloaded(false) {};
+		upperlimit(0), toobig_unscanned(false), toobig_notdownloaded(false) {};
 	int in(DataBuffer * d, Socket * sock, Socket * peersock, HTTPHeader * requestheader,
 		HTTPHeader * docheader, bool wantall, int *headersent, bool * toobig);
 
@@ -68,6 +56,7 @@ private:
 	
 	// was file too large to be scanned?
 	bool toobig_unscanned;
+
 	// was file so large as to not even be downloaded?
 	bool toobig_notdownloaded;
 
@@ -212,7 +201,7 @@ int fancydm::in(DataBuffer * d, Socket * sock, Socket * peersock, class HTTPHead
 	// determine downloaded filename
 	String filename(requestheader->disposition());
 	if (filename.length() == 0) {
-		filename = requestheader->url();
+		filename = requestheader->getUrl();
 		filename = requestheader->decode(filename);
 		if (filename.contains("?"))
 			filename = filename.before("?");
@@ -331,7 +320,7 @@ int fancydm::in(DataBuffer * d, Socket * sock, Socket * peersock, class HTTPHead
 						peersock->writeString(message.toCharArray());
 						peersock->writeString("<!-- force flush -->\r\n");
 						// add URL to clean cache (for all groups)
-						String url(requestheader->url());
+						String url(requestheader->getUrl());
 						addToClean(url, o.filter_groups + 1);
 #ifdef DGDEBUG
 						std::cout << "fancydm: file too big to be scanned, entering second stage of download" << std::endl;

@@ -1,21 +1,6 @@
-//Please refer to http://dansguardian.org/?page=copyright2
-//for the license for this code.
-//Written by Daniel Barron (daniel@//jadeb/.com).
-//For support go to http://groups.yahoo.com/group/dansguardian
-
-//  This program is free software; you can redistribute it and/or modify
-//  it under the terms of the GNU General Public License as published by
-//  the Free Software Foundation; either version 2 of the License, or
-//  (at your option) any later version.
-//
-//  This program is distributed in the hope that it will be useful,
-//  but WITHOUT ANY WARRANTY; without even the implied warranty of
-//  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-//  GNU General Public License for more details.
-//
-//  You should have received a copy of the GNU General Public License
-//  along with this program; if not, write to the Free Software
-//  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+// For all support, instructions and copyright go to:
+// http://dansguardian.org/
+// Released under the GPL v2, with the OpenSSL exception described in the README file.
 
 
 // INCLUDES
@@ -31,6 +16,7 @@
 #include <fstream>
 #include <sstream>
 #include <syslog.h>
+#include <dirent.h>
 
 #include <unistd.h>		// checkme: remove?
 
@@ -42,7 +28,15 @@ extern bool is_daemonised;
 
 // IMPLEMENTATION
 
-OptionContainer::OptionContainer():numfg(0)
+OptionContainer::OptionContainer():use_filter_groups_list(false), use_group_names_list(false),
+auth_needs_proxy_query(false), prefer_cached_lists(false), no_daemon(false), no_logger(false),
+log_syslog(false),  anonymise_logs(false), log_ad_blocks(false),log_timestamp(false),
+log_user_agent(false), soft_restart(false),delete_downloaded_temp_files(false),
+max_logitem_length(0), max_content_filter_size(0),
+max_content_ramcache_scan_size(0), max_content_filecache_scan_size(0), scan_clean_cache(0),
+content_scan_exceptions(0), initial_trickle_delay(0), trickle_delay(0), content_scanner_timeout(0),
+reporting_level(0), weighted_phrase_mode(0), numfg(0),
+fg(NULL)
 {
 }
 
@@ -57,6 +51,7 @@ void OptionContainer::reset()
 	deletePlugins(dmplugins);
 	deletePlugins(csplugins);
 	deletePlugins(authplugins);
+	deleteRooms();
 	exception_ip_list.reset();
 	banned_ip_list.reset();
 	html_template.reset();
@@ -64,6 +59,8 @@ void OptionContainer::reset()
 	conffile.clear();
 	if (use_filter_groups_list) filter_groups_list.reset();
 	filter_ip.clear();
+	filter_ports.clear();
+	auth_map.clear();
 }
 
 void OptionContainer::deleteFilterGroups()
@@ -82,6 +79,16 @@ void OptionContainer::deleteFilterGroups()
 		numfg = 0;
 	}
 }
+
+void OptionContainer::deleteFilterGroupsJustListData()
+{
+	for (int i = 0; i < numfg; i++) {
+		if (fg[i] != NULL) {
+			fg[i]->resetJustListData();
+		}
+	}
+}
+
 
 void OptionContainer::deletePlugins(std::deque<Plugin*> &list)
 {
@@ -187,6 +194,43 @@ bool OptionContainer::read(const char *filename, int type)
 			soft_restart = false;
 		}
 
+#ifdef __SSLCERT
+		ssl_certificate_path = findoptionS("sslcertificatepath") + "/";
+		if (ssl_certificate_path == "/"){
+			ssl_certificate_path = "/etc/ssl/certs/";
+		}
+#endif
+
+
+#ifdef __SSLMITM
+		// TODO: maybe make these more sensible paths?
+		ca_certificate_path = findoptionS("cacertificatepath");
+		if (ca_certificate_path == ""){
+			//ca_certificate_path = __CONFDIR "/ca.pem";
+		}
+		
+		ca_private_key_path = findoptionS("caprivatekeypath");
+		if (ca_private_key_path == ""){
+			//ca_private_key_path = __CONFDIR "/ca.key";
+		}
+		
+		cert_private_key_path  = findoptionS("certprivatekeypath");
+		if (cert_private_key_path == ""){
+			//cert_private_key_path = __CONFDIR "/certs.key";
+		}
+
+		generated_cert_path = findoptionS("generatedcertpath") + "/";
+		if (generated_cert_path == "/"){
+			//generated_cert_path = "/etc/ssl/certs/";
+		}
+		
+		generated_link_path = findoptionS("generatedlinkpath") + "/";
+		if (generated_link_path == "/"){
+			//generated_link_path = "/etc/ssl/certs/";
+		}
+#endif
+
+
 #ifdef ENABLE_EMAIL
 		// Email notification patch by J. Gauthier
 		mailer = findoptionS("mailer");
@@ -199,6 +243,10 @@ bool OptionContainer::read(const char *filename, int type)
 		if (!realitycheck(max_logitem_length, 0, 0, "maxlogitemlength")) {
 			return false;
 		}
+                proxy_timeout = findoptionI("proxytimeout");
+                if (!realitycheck(proxy_timeout, 20, 100, "proxytimeout")) {
+                       return false;
+                }               // check its a reasonable value
 		max_children = findoptionI("maxchildren");
 		if (!realitycheck(max_children, 4, 0, "maxchildren")) {
 			return false;
@@ -229,14 +277,6 @@ bool OptionContainer::read(const char *filename, int type)
 			return false;
 		}
 
-		// TODO: Implement a "findoptionO" and a version of
-		// reality check which uses off_t, for large file support?
-		max_upload_size = findoptionI("maxuploadsize");
-		if (!realitycheck(max_upload_size, -1, 0, "maxuploadsize")) {
-			return false;
-		}		// check its a reasonable value
-		max_upload_size *= 1024;
-		
 		max_content_filter_size = findoptionI("maxcontentfiltersize");
 		if (!realitycheck(max_content_filter_size, 0, 0, "maxcontentfiltersize")) {
 			return false;
@@ -364,10 +404,6 @@ bool OptionContainer::read(const char *filename, int type)
 		custom_banned_flash_file = findoptionS("custombannedflashfile");
 		banned_flash.read(custom_banned_flash_file.c_str());
 		
-		filter_port = findoptionI("filterport");
-		if (!realitycheck(filter_port, 1, 65535, "filterport")) {
-			return false;
-		}		// check its a reasonable value
 		proxy_port = findoptionI("proxyport");
 		if (!realitycheck(proxy_port, 1, 65535, "proxyport")) {
 			return false;
@@ -383,6 +419,18 @@ bool OptionContainer::read(const char *filename, int type)
 			syslog(LOG_ERR, "%s", "Can not listen on more than 127 IPs");
 			return false;
 		}
+		filter_ports = findoptionM("filterports");
+		if (filter_ports.size() != filter_ip.size()) {
+			if (!is_daemonised) {
+				std::cerr << "filterports (" << filter_ports.size() << ") must match number of filterips (" << filter_ip.size() << ")" << std::endl;
+			}
+			syslog(LOG_ERR, "%s", "filterports must match number of filterips");
+			return false;
+		}
+		filter_port = filter_ports[0].toInteger();
+		if (!realitycheck(filter_port, 1, 65535, "filterport[0]")) {
+			return false;
+		}		// check its a reasonable value
 
 #ifdef ENABLE_ORIG_IP
 		if (findoptionS("originalip") == "off") {
@@ -552,6 +600,51 @@ bool OptionContainer::read(const char *filename, int type)
 			return false;
 		}
 
+		// map port numbers to auth plugin names
+		for (int i = 0; i < authplugins.size(); i++) {
+			AuthPlugin* tmpPlugin = (AuthPlugin*) authplugins[i];
+			String tmpStr = tmpPlugin->getPluginName();
+
+			if (filter_ports.size() == 1 )
+				auth_map[filter_ports[0].toInteger()] = tmpStr;
+			else
+				auth_map[filter_ports[i].toInteger()] = tmpStr;
+		}
+
+		// if the more than one port is being used, validate the combination of auth plugins
+		if (authplugins.size() > 1) {
+			std::deque<Plugin*>::iterator it = authplugins.begin();
+			String firstPlugin;
+			bool sslused = false;
+			bool coreused = false;
+			while (it != authplugins.end()) {
+				AuthPlugin* tmp = (AuthPlugin*) *it;
+				if (tmp->getPluginName().startsWith("proxy-basic")) {
+					if (!is_daemonised)
+						std::cerr << "Proxy auth is not possible with multiple ports" << std::endl;
+					syslog(LOG_ERR, "Proxy auth is not possible with multiple ports");
+					return false;
+				}
+				if (tmp->getPluginName().startsWith("proxy-ntlm") && (tmp->isTransparent() == false)) {
+					if (!is_daemonised)
+						std::cerr << "Non-transparent NTLM is not possible with multiple ports" << std::endl;
+					syslog(LOG_ERR, "Non-transparent NTLM is not possible with multiple ports");
+					return false;
+				}
+				if (it == authplugins.begin())
+					firstPlugin = tmp->getPluginName();
+				else {
+					if ((firstPlugin == tmp->getPluginName()) and (!tmp->getPluginName().startsWith("ssl-core"))) {
+						if (!is_daemonised)
+							std::cerr << "Auth plugins can not be the same" << std::endl;
+						syslog(LOG_ERR, "Auth plugins can not be the same");
+						return false;
+					}
+				}
+				*it++;
+			}
+		}
+
 		// if there's no auth enabled, we only need the first group's settings
 		if (authplugins.size() == 0)
 			filter_groups = 1;
@@ -559,6 +652,7 @@ bool OptionContainer::read(const char *filename, int type)
 		filter_groups_list_location = findoptionS("filtergroupslist");
 		std::string banned_ip_list_location(findoptionS("bannediplist"));
 		std::string exception_ip_list_location(findoptionS("exceptioniplist"));
+		per_room_blocking_directory_location = findoptionS("perroomblockingdirectory");
 		group_names_list_location = findoptionS("groupnamesfile");
 		std::string language_list_location(languagepath + "messages");
 		if (reporting_level == 1 || reporting_level == 2) {
@@ -617,6 +711,8 @@ bool OptionContainer::read(const char *filename, int type)
 			std::cout << "Failed to read bannediplist" << std::endl;
 			return false;
 		}
+
+		loadRooms();
 
 		if (!language_list.readLanguageList(language_list_location.c_str())) {
 			return false;
@@ -678,6 +774,66 @@ bool OptionContainer::inBannedIPList(const std::string *ip, std::string *&host)
 	return banned_ip_list.inList(*ip, host);
 }
 
+bool OptionContainer::inRoom(const std::string& ip, std::string& room, std::string *&host) const
+{
+	for (std::list<std::pair<std::string, IPList*> >::const_iterator i = rooms.begin(); i != rooms.end(); ++i)
+	{
+		if (i->second->inList(ip, host))
+		{
+			room = i->first;
+			return true;
+		}
+	}
+	return false;
+}
+
+void OptionContainer::loadRooms()
+{
+	DIR* d = opendir(per_room_blocking_directory_location.c_str());
+	if (d == NULL)
+	{
+		syslog(LOG_ERR, "Could not open room definitions directory: %s", ErrStr().c_str());
+		exit(1);
+	}
+
+	struct dirent* f;
+	while ((f = readdir(d)))
+	{
+		if (f->d_name[0] == '.')
+			continue;
+		std::string filename(per_room_blocking_directory_location);
+		filename.append(f->d_name);
+		std::ifstream infile(filename.c_str());
+
+		std::string roomname;
+		std::getline(infile, roomname);
+		infile.close();
+		roomname = roomname.substr(1);
+
+		IPList* contents = new IPList();
+		contents->readIPMelangeList(filename.c_str());
+
+		rooms.push_back(std::pair<std::string, IPList*>(roomname, contents));
+	}
+
+	if (closedir(d) != 0)
+	{
+		if (errno != EINTR)
+		{
+			syslog(LOG_ERR, "Could not close room definitions directory: %s", ErrStr().c_str());
+			exit(1);
+		}
+	}
+}
+
+void OptionContainer::deleteRooms()
+{
+	for (std::list<std::pair<std::string, IPList*> >::const_iterator i = rooms.begin(); i != rooms.end(); ++i)
+	{
+		delete i->second;
+	}
+	rooms.clear();
+}
 
 long int OptionContainer::findoptionI(const char *option)
 {
@@ -692,8 +848,11 @@ std::string OptionContainer::findoptionS(const char *option)
 	String temp;
 	String temp2;
 	String o(option);
-	for (int i = 0; i < (signed) conffile.size(); i++) {
-		temp = conffile[i].c_str();
+
+	for (std::deque<std::string>::iterator i = conffile.begin(); i != conffile.end(); i++) {
+		if ((*i).empty())
+			continue;
+		temp = (*i).c_str();
 		temp2 = temp.before("=");
 		while (temp2.endsWith(" ")) {	// get rid of tailing spaces before =
 			temp2.chop();
@@ -726,8 +885,11 @@ std::deque<String > OptionContainer::findoptionM(const char *option)
 	String temp2;
 	String o(option);
 	std::deque<String > results;
-	for (int i = 0; i < (signed) conffile.size(); i++) {
-		temp = conffile[i].c_str();
+
+	for (std::deque<std::string>::iterator i = conffile.begin(); i != conffile.end(); i++) {
+		if ((*i).empty())
+			continue;
+		temp = (*i).c_str();
 		temp2 = temp.before("=");
 		while (temp2.endsWith(" ")) {	// get rid of tailing spaces before =
 			temp2.chop();
@@ -875,8 +1037,12 @@ bool OptionContainer::readAnotherFilterGroupConf(const char *filename, const cha
 	if (!rc) {
 		return false;
 	}
-
+	//<TODO> ifdef for ssl mitm
+#ifdef __SSLMITM
+	if (((fg[numfg-1]->reporting_level == 3)  || fg[numfg-1]->ssl_mitm) && (html_template.html.size() == 0)) {
+#else
 	if ((fg[numfg-1]->reporting_level == 3) && (html_template.html.size() == 0)) {
+#endif
 #ifdef DGDEBUG
 		std::cout << "One of the groups has overridden the reporting level! Loading the HTML template." << std::endl;
 #endif

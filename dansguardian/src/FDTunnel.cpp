@@ -1,28 +1,10 @@
-//Please refer to http://dansguardian.org/?page=copyright
-//for the license for this code.
-//Written by Daniel Barron (daniel@//jadeb/.com).
-//For support go to http://groups.yahoo.com/group/dansguardian
-
-//  This program is free software; you can redistribute it and/or modify
-//  it under the terms of the GNU General Public License as published by
-//  the Free Software Foundation; either version 2 of the License, or
-//  (at your option) any later version.
-//
-//  This program is distributed in the hope that it will be useful,
-//  but WITHOUT ANY WARRANTY; without even the implied warranty of
-//  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-//  GNU General Public License for more details.
-//
-//  You should have received a copy of the GNU General Public License
-//  along with this program; if not, write to the Free Software
-//  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+// For all support, instructions and copyright go to:
+// http://dansguardian.org/
+// Released under the GPL v2, with the OpenSSL exception described in the README file.
 
 // This class is a generic multiplexing tunnel
 // that uses blocking select() to be as efficient as possible.  It tunnels
 // between the two supplied FDs.
-
-// Linux Application Development by Michael K. Johnson and Erik W. Troan
-// was used extensivly to produce this class
 
 
 // INCLUDES
@@ -33,6 +15,7 @@
 
 #include <sys/time.h>
 #include <unistd.h>
+#include <stdexcept>
 #include <cerrno>
 #include <sys/socket.h>
 #include <string.h>
@@ -79,7 +62,9 @@ bool FDTunnel::tunnel(Socket &sockfrom, Socket &sockto, bool twoway, off_t targe
 #ifdef DGDEBUG
 		std::cout << "Data in fdfrom's buffer; sending " << (sockfrom.bufflen - sockfrom.buffstart) << " bytes" << std::endl;
 #endif
-		sockto.writeToSocket(sockfrom.buffer + sockfrom.buffstart, sockfrom.bufflen - sockfrom.buffstart, 0, 120, false);
+		if (!sockto.writeToSocket(sockfrom.buffer + sockfrom.buffstart, sockfrom.bufflen - sockfrom.buffstart, 0, 120, false))
+			throw std::runtime_error(std::string("Can't write to socket: ") + ErrStr());
+		
 		throughput += sockfrom.bufflen - sockfrom.buffstart;
 		sockfrom.bufflen = 0;
 		sockfrom.buffstart = 0;
@@ -122,6 +107,21 @@ bool FDTunnel::tunnel(Socket &sockfrom, Socket &sockto, bool twoway, off_t targe
 
 		if (ignore && !twoway) FD_CLR(fdto, &inset);
 
+#ifdef __SSLMITM
+		//<TODO> This if is a nasty hack for ssl man in the middle
+		//FD_SET sets the fd to a readable state then data is read 
+		//from the server until the server runs out of data then it
+		//gets gets dumped out to the client.
+		//This will break if the server is ever expecting data from
+		//the client.
+		//There isnt and SSL_select function, SSL_pending only reports
+		//whats waiting in the current record, and nbio doesnt seem to
+		//work if you use BIO_setfd (like we have to) so no ideas how
+		//to actually fix this other than rewrite dg
+		if (sockfrom.isSsl()){
+		}
+		else
+#endif
 		if (selectEINTR(maxfd + 1, &inset, NULL, NULL, &t) < 1) {
 			break;  // an error occured or it timed out so end while()
 		}

@@ -1,21 +1,6 @@
-//Please refer to http://dansguardian.org/?page=copyright2
-//for the license for this code.
-//Written by Daniel Barron (daniel@jadeb//.com).
-//For support go to http://groups.yahoo.com/group/dansguardian
-
-//  This program is free software; you can redistribute it and/or modify
-//  it under the terms of the GNU General Public License as published by
-//  the Free Software Foundation; either version 2 of the License, or
-//  (at your option) any later version.
-//
-//  This program is distributed in the hope that it will be useful,
-//  but WITHOUT ANY WARRANTY; without even the implied warranty of
-//  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-//  GNU General Public License for more details.
-//
-//  You should have received a copy of the GNU General Public License
-//  along with this program; if not, write to the Free Software
-//  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+// For all support, instructions and copyright go to:
+// http://dansguardian.org/
+// Released under the GPL v2, with the OpenSSL exception described in the README file.
 
 
 // INCLUDES
@@ -24,6 +9,7 @@
 	#include "dgconfig.h"
 #endif
 
+#include <sstream>
 #include <cstdlib>
 #include <syslog.h>
 #include <csignal>
@@ -47,6 +33,11 @@
 #include <execinfo.h>
 #include <ucontext.h>
 #endif
+
+#ifdef __SSLCERT
+#include <openssl/ssl.h>
+#include <openssl/err.h>
+#endif //__SSLCERT
 
 #include "FatController.hpp"
 #include "ConnectionHandler.hpp"
@@ -241,7 +232,7 @@ bool drop_priv_completely()
 	if (rc == -1) {
 		syslog(LOG_ERR, "%s", "Unable to seteuid(suid)");
 #ifdef DGDEBUG
-		std::cout << strerror(errno) << std::endl;
+		std::cout << ErrStr() << std::endl;
 #endif
 		return false;  // setuid failed for some reason so exit with error
 	}
@@ -264,7 +255,7 @@ void flush_urlcache()
 		syslog(LOG_ERR, "%s", "Error creating ipc socket to url cache for flush");
 		return;
 	}
-	if (fipcsock.connect((char *) o.urlipc_filename.c_str()) < 0) {	// conn to dedicated url cach proc
+	if (fipcsock.connect(o.urlipc_filename.c_str()) < 0) {	// conn to dedicated url cach proc
 		syslog(LOG_ERR, "%s", "Error connecting via ipc to url cache for flush");
 #ifdef DGDEBUG
 		std::cout << "Error connecting via ipc to url cache for flush" << std::endl;
@@ -300,6 +291,7 @@ bool daemonise()
 		return true;  // we are already daemonised so this must be a
 		// reload caused by a HUP
 	}
+
 	int nullfd = -1;
 	if ((nullfd = open("/dev/null", O_WRONLY, 0)) == -1) {
 		syslog(LOG_ERR, "%s", "Couldn't open /dev/null");
@@ -308,14 +300,20 @@ bool daemonise()
 
 	pid_t pid;
 	if ((pid = fork()) < 0) {
+		// Error!!
+		close(nullfd);
 		return false;
 	}
 	else if (pid != 0) {
+		// parent goes...
 		if (nullfd != -1) {
 			close(nullfd);
 		}
-		exit(0);  // parent goes bye-bye
+
+		// bye-bye
+		exit(0);
 	}
+
 	// child continues
 	dup2(nullfd, 0);  // stdin
 	dup2(nullfd, 1);  // stdout
@@ -323,7 +321,7 @@ bool daemonise()
 	close(nullfd);
 
 	setsid();  // become session leader
-	chdir("/");  // change working directory
+	int dummy = chdir("/");  // change working directory
 	umask(0);  // clear our file mode creation mask
 
 	is_daemonised = true;
@@ -365,7 +363,7 @@ int prefork(int num)
 			syslog(LOG_ERR, "%s", "Unable to fork() any more.");
 #ifdef DGDEBUG
 			std::cout << "Unable to fork() any more." << std::endl;
-			std::cout << strerror(errno) << std::endl;
+			std::cout << ErrStr() << std::endl;
 			std::cout << "numchildren:" << numchildren << std::endl;
 #endif
 			failurecount++;  // log the error/failure
@@ -385,7 +383,6 @@ int prefork(int num)
 				return -1;  //error
 			}
 			// no need to deallocate memory etc as already done when fork()ed
-
 			// right - let's do our job!
 			UDSocket sock(sv[1]);
 			int rc = handle_connections(sock);
@@ -396,13 +393,22 @@ int prefork(int num)
 			// I am the parent
 			// close the end of the socketpair we don't need
 			close(sv[1]);
-			// add the child and its FD/PID to an empty child slot
-			addchild(getchildslot(), sv[0], child_pid);
+
+			int child_slot;
 #ifdef DGDEBUG
-			std::cout << "Preforked parent added child to list" << std::endl;
+			std::cout << "child_slot" << child_slot << std::endl;
 #endif
+
+			// add the child and its FD/PID to an empty child slot
+			if ((child_slot = getchildslot()) >= 0) {
+				addchild(child_slot, sv[0], child_pid);
+#ifdef DGDEBUG
+				std::cout << "Preforked parent added child to list" << std::endl;
+#endif
+			}
 		}
 	}
+
 	return 1;  // parent returning
 }
 
@@ -500,7 +506,7 @@ int handle_connections(UDSocket &pipe)
 			continue;
 		}
 
-		h.handleConnection(*peersock, peersockip);  // deal with the connection
+		h.handlePeer(*peersock, peersockip);  // deal with the connection
 		delete peersock;
 	}
 	if (!(++cycle) && o.logchildprocs)
@@ -603,6 +609,9 @@ int getchildslot()
 // add the given child, including FD & PID, to the given slot in our lists
 void addchild(int pos, int fd, pid_t child_pid)
 {
+	if (pos < 0)
+		return;
+
 	childrenpids[pos] = (int) child_pid;
 	childrenstates[pos] = 4;  // busy waiting for init
 	numchildren++;
@@ -771,9 +780,12 @@ int getfreechild()
 // tell given child process to accept an incoming connection
 void tellchild_accept(int num, int whichsock)
 {
+	std::string sstr;
+	sstr = whichsock;
+
 	// include server socket number in message
 	try {
-		childsockets[num]->writeToSockete((char*)&whichsock, 1, 0, 5, true);
+		childsockets[num]->writeToSockete(sstr.c_str(), 1, 0, 5, true);
 	} catch(std::exception & e) {
 		kill(childrenpids[num], SIGTERM);
 		deletechild(childrenpids[num]);
@@ -818,6 +830,8 @@ int log_listener(std::string log_location, bool logconerror, bool logsyslog)
 	if (!drop_priv_completely()) {
 		return 1;  //error
 	}
+	o.deleteFilterGroupsJustListData();
+	o.lm.garbageCollect();
 	UDSocket* ipcpeersock;  // the socket which will contain the ipc connection
 	int rc, ipcsockfd;
 
@@ -1443,6 +1457,8 @@ int url_list_listener(bool logconerror)
 	if (!drop_priv_completely()) {
 		return 1;  //error
 	}
+	o.deleteFilterGroupsJustListData();
+	o.lm.garbageCollect();
 	UDSocket* ipcpeersock = NULL;  // the socket which will contain the ipc connection
 	int rc, ipcsockfd;
 	char *logline = new char[32000];
@@ -1570,6 +1586,8 @@ int ip_list_listener(std::string stat_location, bool logconerror) {
 	if (!drop_priv_completely()) {
 		return 1;  //error
 	}
+	o.deleteFilterGroupsJustListData();
+	o.lm.garbageCollect();
 	UDSocket *ipcpeersock;
 	int rc, ipcsockfd;
 	char* inbuff = new char[16];
@@ -1640,7 +1658,7 @@ int ip_list_listener(std::string stat_location, bool logconerror) {
 #endif
 			int statfd = open(stat_location.c_str(), O_CREAT | O_WRONLY, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
 			if (statfd > 0) {
-				write(statfd, usagestats.toCharArray(), usagestats.length());
+				int dummy = write(statfd, usagestats.toCharArray(), usagestats.length());
 			}
 			close(statfd);
 			// reset sleep timer
@@ -1741,6 +1759,7 @@ int fc_controlit()
 				std::cerr << "Error creating server socket " << i << std::endl;
 			}
 			syslog(LOG_ERR, "Error creating server socket %d", i);
+			free(serversockfds);
 			return 1;
 		}
 	}
@@ -1772,6 +1791,7 @@ int fc_controlit()
 				std::cerr << "Error creating ipc socket" << std::endl;
 			}
 			syslog(LOG_ERR, "%s", "Error creating ipc socket");
+			free(serversockfds);
 			return 1; 
 		}
 	}
@@ -1795,6 +1815,7 @@ int fc_controlit()
 #ifdef DGDEBUG
 			std::cerr << "Unable to seteuid() to bind filter port." << std::endl;
 #endif
+			free(serversockfds);
 			return 1;
 		}
 	//}
@@ -1804,6 +1825,7 @@ int fc_controlit()
 	if (pidfilefd < 0) {
 		syslog(LOG_ERR, "%s", "Error creating/opening pid file.");
 		std::cerr << "Error creating/opening pid file:" << o.pid_filename << std::endl;
+		free(serversockfds);
 		return 1;
 	}
 
@@ -1811,20 +1833,24 @@ int fc_controlit()
 	// if we don't find one, bind to any, as per old behaviour.
 	// XXX AAAARGH!
 	if (o.filter_ip[0].length() > 6) {
-		if (serversockets.bindAll(o.filter_ip, o.filter_port)) {
+		if (serversockets.bindAll(o.filter_ip, o.filter_ports)) {
 			if (!is_daemonised) {
 				std::cerr << "Error binding server socket (is something else running on the filter port and ip?" << std::endl;
 			}
 			syslog(LOG_ERR, "Error binding server socket (is something else running on the filter port and ip?");
+		close(pidfilefd);
+		free(serversockfds);
 		return 1;
 		}
 	} else {
 		// listen/bind to a port on any interface
 		if (serversockets.bindSingle(o.filter_port)) {
 			if (!is_daemonised) {
-				std::cerr << "Error binding server socket: [" << o.filter_port << "] (" << strerror(errno) << ")" << std::endl;
+				std::cerr << "Error binding server socket: [" << o.filter_port << "] (" << ErrStr() << ")" << std::endl;
 			}
-			syslog(LOG_ERR, "Error binding server socket: [%d] (%s)", o.filter_port, strerror(errno));
+			syslog(LOG_ERR, "Error binding server socket: [%d] (%s)", o.filter_port, ErrStr().c_str());
+			close(pidfilefd);
+			free(serversockfds);
 			return 1;
 		}
 	}
@@ -1841,6 +1867,8 @@ int fc_controlit()
 #ifdef DGDEBUG
 			std::cerr << "Unable to re-seteuid()" << std::endl;
 #endif
+			close(pidfilefd);
+			free(serversockfds);
 			return 1;  // seteuid failed for some reason so exit with error
 		}
 	//}
@@ -1854,11 +1882,13 @@ int fc_controlit()
 	unlink(o.ipipc_filename.c_str());
 
 	if (!o.no_logger) {
-		if (loggersock.bind((char *) o.ipc_filename.c_str())) {	// bind to file
+		if (loggersock.bind(o.ipc_filename.c_str())) {	// bind to file
 			if (!is_daemonised) {
 				std::cerr << "Error binding ipc server file (try using the SysV to stop DansGuardian then try starting it again or doing an 'rm " << o.ipc_filename << "')." << std::endl;
 			}
 			syslog(LOG_ERR, "Error binding ipc server file (try using the SysV to stop DansGuardian then try starting it again or doing an 'rm %s').", o.ipc_filename.c_str());
+			close(pidfilefd);
+			free(serversockfds);
 			return 1;
 		}
 		if (loggersock.listen(256)) {	// set it to listen mode with a kernel
@@ -1867,16 +1897,20 @@ int fc_controlit()
 				std::cerr << "Error listening to ipc server file" << std::endl;
 			}
 			syslog(LOG_ERR, "Error listening to ipc server file");
+			close(pidfilefd);
+			free(serversockfds);
 			return 1;
 		}
 	}
 
 	if (o.url_cache_number > 0) {
-		if (urllistsock.bind((char *) o.urlipc_filename.c_str())) {	// bind to file
+		if (urllistsock.bind(o.urlipc_filename.c_str())) {	// bind to file
 			if (!is_daemonised) {
 				std::cerr << "Error binding urllistsock server file (try using the SysV to stop DansGuardian then try starting it again or doing an 'rm " << o.urlipc_filename << "')." << std::endl;
 			}
 			syslog(LOG_ERR, "Error binding urllistsock server file (try using the SysV to stop DansGuardian then try starting it again or doing an 'rm %s').", o.urlipc_filename.c_str());
+			close(pidfilefd);
+			free(serversockfds);
 			return 1;
 		}
 		if (urllistsock.listen(256)) {	// set it to listen mode with a kernel
@@ -1885,6 +1919,8 @@ int fc_controlit()
 				std::cerr << "Error listening to url ipc server file" << std::endl;
 			}
 			syslog(LOG_ERR, "Error listening to url ipc server file");
+			close(pidfilefd);
+			free(serversockfds);
 			return 1;
 		}
 	}
@@ -1895,6 +1931,8 @@ int fc_controlit()
 				std::cerr << "Error binding iplistsock server file (try using the SysV to stop DansGuardian then try starting it again or doing an 'rm " << o.ipipc_filename << "')." << std::endl;
 			}
 			syslog(LOG_ERR, "Error binding iplistsock server file (try using the SysV to stop DansGuardian then try starting it again or doing an 'rm %s').", o.ipipc_filename.c_str());
+			close(pidfilefd);
+			free(serversockfds);
 			return 1;
 		}
 		if (iplistsock.listen(256)) {	// set it to listen mode with a kernel
@@ -1903,6 +1941,8 @@ int fc_controlit()
 				std::cerr << "Error listening to ip ipc server file" << std::endl;
 			}
 			syslog(LOG_ERR, "Error listening to ip ipc server file");
+			close(pidfilefd);
+			free(serversockfds);
 			return 1;
 		}
 	}
@@ -1913,21 +1953,35 @@ int fc_controlit()
 			std::cerr << "Error listening to server socket" << std::endl;
 		}
 		syslog(LOG_ERR, "Error listening to server socket");
+		close(pidfilefd);
+		free(serversockfds);
 		return 1;
 	}
 
-	if (!daemonise()) {	// become a detached daemon
+	if (!daemonise()) {
+		// detached daemon
 		if (!is_daemonised) {
 			std::cerr << "Error daemonising" << std::endl;
 		}
 		syslog(LOG_ERR, "Error daemonising");
+		close(pidfilefd);
+		free(serversockfds);
 		return 1;
 	}
+
+#ifdef __SSLCERT
+	//init open ssl
+	SSL_load_error_strings();
+	OpenSSL_add_all_algorithms();
+	OpenSSL_add_all_digests();
+	SSL_library_init();
+#endif	
 
 	// this has to be done after daemonise to ensure we get the correct PID.
 	rc = sysv_writepidfile(pidfilefd);  // also closes the fd
 	if (rc != 0) {
-		syslog(LOG_ERR, "Error writing to the dansguardian.pid file: %s", strerror(errno));
+		syslog(LOG_ERR, "Error writing to the dansguardian.pid file: %s", ErrStr().c_str());
+		free(serversockfds);
 		return false;
 	}
 	// We are now a daemon so all errors need to go in the syslog, rather
@@ -1954,13 +2008,17 @@ int fc_controlit()
 	// incoming UDS ipc from our forked children.  This helps reduce
 	// bottlenecks by not having only one select() loop.
 	if (!o.no_logger) {
-
 		loggerpid = fork();  // make a child processes copy of self to be logger
 
 		if (loggerpid == 0) {	// ma ma!  i am the child
 			serversockets.deleteAll();  // we don't need our copy of this so close it
-			delete[] serversockfds;
-			urllistsock.close();  // we don't need our copy of this so close it
+			free(serversockfds);
+			if (o.max_ips > 0) {
+				iplistsock.close();
+			}
+			if (o.url_cache_number > 0) {
+				urllistsock.close();  // we don't need our copy of this so close it
+			}	
 			log_listener(o.log_location, o.logconerror, o.log_syslog);
 #ifdef DGDEBUG
 			std::cout << "Log listener exiting" << std::endl;
@@ -1974,9 +2032,12 @@ int fc_controlit()
 		urllistpid = fork();
 		if (urllistpid == 0) {	// ma ma!  i am the child
 			serversockets.deleteAll(); // we don't need our copy of this so close it
-			delete[] serversockfds;
+			free(serversockfds);
 			if (!o.no_logger) {
 				loggersock.close();  // we don't need our copy of this so close it
+			}
+			if (o.max_ips > 0) {
+				iplistsock.close();
 			}
 			url_list_listener(o.logconerror);
 #ifdef DGDEBUG
@@ -1991,9 +2052,12 @@ int fc_controlit()
 		iplistpid = fork();
 		if (iplistpid == 0) {	// ma ma!  i am the child
 			serversockets.deleteAll(); // we don't need our copy of this so close it
-			delete[] serversockfds;
+			free(serversockfds);
 			if (!o.no_logger) {
 				loggersock.close();  // we don't need our copy of this so close it
+			}
+			if (o.url_cache_number > 0) {
+			        urllistsock.close();  // we don't need our copy of this so close it
 			}
 			ip_list_listener(o.stat_location, o.logconerror);
 #ifdef DGDEBUG
@@ -2116,7 +2180,7 @@ int fc_controlit()
 	waitingfor = 0;
 	rc = prefork(o.min_children);
 
-	sleep(1);  // need to allow some of the forks to complete
+	sleep(2);  // need to allow some of the forks to complete
 
 #ifdef DGDEBUG
 	std::cout << "Parent process preforked rc:" << rc << std::endl;
@@ -2165,6 +2229,8 @@ int fc_controlit()
 							reloadconfig = true;  // auth plugs problem
 					}
 					if (!reloadconfig) {
+						o.deleteRooms();
+						o.loadRooms();
 						hup_allchildren();
 						o.lm.garbageCollect();
 						prefork(o.min_children);
@@ -2188,14 +2254,14 @@ int fc_controlit()
 
 		if (rc < 0) {	// was an error
 #ifdef DGDEBUG
-			std::cout << "errno:" << errno << " " << strerror(errno) << std::endl;
+			std::cout << "errno:" << errno << " " << ErrStr() << std::endl;
 #endif
 
 			if (errno == EINTR) {
 				continue;  // was interupted by a signal so restart
 			}
 			if (o.logconerror)
-				syslog(LOG_ERR, "Error polling child process sockets: %s", strerror(errno));
+				syslog(LOG_ERR, "Error polling child process sockets: %s", ErrStr().c_str());
 			failurecount++;  // log the error/failure
 			continue;  // then continue with the looping
 		}
@@ -2338,7 +2404,7 @@ int fc_controlit()
 #endif
 
 	serversockets.deleteAll();
-	delete[] serversockfds; // be nice and neat
+	free(serversockfds);
 
 	memset(&sa, 0, sizeof(sa));
 	sa.sa_handler = SIG_DFL;

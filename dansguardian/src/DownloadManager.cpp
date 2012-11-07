@@ -1,21 +1,8 @@
 // Implements dm_plugin_load and base DMPlugin methods
 
-//Please refer to http://dansguardian.org/?page=copyright2
-//for the license for this code.
-
-//  This program is free software; you can redistribute it and/or modify
-//  it under the terms of the GNU General Public License as published by
-//  the Free Software Foundation; either version 2 of the License, or
-//  (at your option) any later version.
-//
-//  This program is distributed in the hope that it will be useful,
-//  but WITHOUT ANY WARRANTY; without even the implied warranty of
-//  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-//  GNU General Public License for more details.
-//
-//  You should have received a copy of the GNU General Public License
-//  along with this program; if not, write to the Free Software
-//  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+// For all support, instructions and copyright go to:
+// http://dansguardian.org/
+// Released under the GPL v2, with the OpenSSL exception described in the README file.
 
 
 // INCLUDES
@@ -61,7 +48,7 @@ extern dmcreate_t trickledmcreate;
 //
 
 // constructor
-DMPlugin::DMPlugin(ConfigVar &definition):alwaysmatchua(false), cv(definition)
+DMPlugin::DMPlugin(ConfigVar &definition):alwaysmatchua(false), cv(definition), mimelistenabled(false), extensionlistenabled(false)
 {
 }
 
@@ -129,7 +116,7 @@ bool DMPlugin::willHandle(HTTPHeader *requestheader, HTTPHeader *docheader)
 	
 	if (extensionlistenabled && !matchedmime) {
 		// determine the extension
-		String path(requestheader->decode(requestheader->url()));
+		String path(requestheader->decode(requestheader->getUrl()));
 		path.removeWhiteSpace();
 		path.toLower();
 		path.removePTP();

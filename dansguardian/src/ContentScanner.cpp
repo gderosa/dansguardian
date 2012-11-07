@@ -1,21 +1,8 @@
 // Implements CSPlugin class and cs_plugin_loader base class
 
-//Please refer to http://dansguardian.org/?page=copyright2
-//for the license for this code.
-
-//  This program is free software; you can redistribute it and/or modify
-//  it under the terms of the GNU General Public License as published by
-//  the Free Software Foundation; either version 2 of the License, or
-//  (at your option) any later version.
-//
-//  This program is distributed in the hope that it will be useful,
-//  but WITHOUT ANY WARRANTY; without even the implied warranty of
-//  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-//  GNU General Public License for more details.
-//
-//  You should have received a copy of the GNU General Public License
-//  along with this program; if not, write to the Free Software
-//  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+// For all support, instructions and copyright go to:
+// http://dansguardian.org/
+// Released under the GPL v2, with the OpenSSL exception described in the README file.
 
 
 // INCLUDES
@@ -48,6 +35,10 @@ extern OptionContainer o;
 
 #ifdef ENABLE_CLAMD
 extern cscreate_t clamdcreate;
+#endif
+
+#ifdef ENABLE_AVASTD
+extern cscreate_t avastdcreate;
 #endif
 
 #ifdef ENABLE_ICAP
@@ -96,9 +87,10 @@ int CSPlugin::makeTempFile(String * filename)
 	tempfilepath += "/tfXXXXXX";
 	char *tempfilepatharray = new char[tempfilepath.length() + 1];
 	strcpy(tempfilepatharray, tempfilepath.toCharArray());
+	umask(S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP);
 	if ((tempfilefd = mkstemp(tempfilepatharray)) < 1) {
 #ifdef DGDEBUG
-		std::cerr << "error creating cs temp " << tempfilepath << ": " << strerror(errno) << std::endl;
+		std::cerr << "error creating cs temp " << tempfilepath << ": " << ErrStr() << std::endl;
 #endif
 		syslog(LOG_ERR, "%s", "Could not create cs temp file.");
 		tempfilefd = -1;
@@ -493,6 +485,15 @@ CSPlugin* cs_plugin_load(const char *pluginConfigPath)
 		std::cout << "Enabling ClamDscan CS plugin" << std::endl;
 #endif
 		return clamdcreate(cv);
+	}
+#endif
+
+#ifdef ENABLE_AVASTD
+	if (plugname == "avastdscan") {
+#ifdef DGDEBUG
+		std::cout << "Enabling AvastDscan CS plugin" << std::endl;
+#endif
+		return avastdcreate(cv);
 	}
 #endif
 

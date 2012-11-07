@@ -3,7 +3,7 @@
 # 2004,2005 - Daniel Barron
 
 AC_PREREQ(2.57)
-AC_INIT(dansguardian, 2.11.0.7)
+AC_INIT(dansguardian, 2.12.0.0)
 AM_INIT_AUTOMAKE
 AC_CONFIG_HEADERS([dgconfig.h])
 
@@ -151,7 +151,7 @@ AC_SUBST(DGPROXYGROUP, "$proxygroup")
 
 AC_MSG_CHECKING(for piddir)
 AC_ARG_WITH(piddir,
-[AC_HELP_STRING([--with-piddir@<:@=PREFIX/LOCALSTATEDIR/run@:>@], [path for pid file])],
+[AC_HELP_STRING([--with-piddir@<:@=${localstatedir}/run@:>@], [path for pid file])],
 [if test "x${withval}" != "x" ; then
   AC_MSG_RESULT(yes)
   piddir=${withval}
@@ -169,7 +169,7 @@ AC_SUBST(DGPIDDIR)
 
 AC_MSG_CHECKING(for logdir)
 AC_ARG_WITH(logdir,
-[AC_HELP_STRING([--with-logdir@<:@=PREFIX/LOCALSTATEDIR/log/dansguardian@:>@], [path for log files])],
+[AC_HELP_STRING([--with-logdir@<:@=${localstatedir}/log/${PACKAGE_NAME}@:>@], [path for log files])],
 [if test "x${withval}" != "x" ; then
   AC_MSG_RESULT(yes)
   logdir=${withval}
@@ -346,6 +346,32 @@ fi],
 )
 AM_CONDITIONAL(ENABLE_CLAMD, test "x$clamd" = "xtrue")
 AC_SUBST(CLAMDSUPPORT)
+
+# asking user if they want avastd support
+AC_MSG_CHECKING(for avastd support)
+AC_ARG_ENABLE(
+avastd,
+[AC_HELP_STRING([--enable-avastd@<:@=no@:>@], [Enable support for the AvastD content scanner])],
+[ if test "x$enableval" = "xno"; then
+	AC_MSG_RESULT(no)
+	avastd=false
+	AVASTDSUPPORT="!! Not compiled !! "
+else
+	AC_MSG_RESULT(yes)
+	avastd=true
+	cslists=true
+	csconfigs=true
+	AVASTDSUPPORT=""
+	AC_DEFINE([ENABLE_AVASTD],[],[Define to enable AvastD content scanner])
+fi],
+[
+	AC_MSG_RESULT(no)
+	avastd=false
+	AVASTDSUPPORT="!! Not compiled !! "
+]
+)
+AM_CONDITIONAL(ENABLE_AVASTD, test "x$avastd" = "xtrue")
+AC_SUBST(AVASTDSUPPORT)
 
 # asking user if they want icap support
 AC_MSG_CHECKING(for icap support)
@@ -603,6 +629,7 @@ AC_CONFIG_FILES([Makefile
 	        configs/lists/Makefile
 	        configs/lists/phraselists/Makefile
 	        configs/lists/blacklists/Makefile
+	        configs/lists/bannedrooms/Makefile
 	        configs/lists/contentscanners/Makefile
 	        configs/lists/weightedphraselist
 	        configs/lists/exceptionphraselist
@@ -615,6 +642,7 @@ AC_CONFIG_FILES([Makefile
 	        configs/downloadmanagers/trickle.conf
 	        configs/contentscanners/Makefile
 	        configs/contentscanners/clamdscan.conf
+	        configs/contentscanners/avastdscan.conf
 	        configs/contentscanners/icapscan.conf
 	        configs/contentscanners/kavdscan.conf
 	        configs/contentscanners/commandlinescan.conf

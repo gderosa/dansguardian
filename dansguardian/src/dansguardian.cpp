@@ -1,21 +1,6 @@
-//Please refer to http://dansguardian.org/?page=copyright2
-//for the license for this code.
-//Written by Daniel Barron (daniel@//jadeb/.com).
-//For support go to http://groups.yahoo.com/group/dansguardian
-
-//  This program is free software; you can redistribute it and/or modify
-//  it under the terms of the GNU General Public License as published by
-//  the Free Software Foundation; either version 2 of the License, or
-//  (at your option) any later version.
-//
-//  This program is distributed in the hope that it will be useful,
-//  but WITHOUT ANY WARRANTY; without even the implied warranty of
-//  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-//  GNU General Public License for more details.
-//
-//  You should have received a copy of the GNU General Public License
-//  along with this program; if not, write to the Free Software
-//  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+// For all support, instructions and copyright go to:
+// http://dansguardian.org/
+// Released under the GPL v2, with the OpenSSL exception described in the README file.
 
 
 // INCLUDES
@@ -319,8 +304,8 @@ int main(int argc, char *argv[])
 	if ((sg = getgrnam(o.daemon_group_name.c_str())) != 0) {
 		o.proxy_group = sg->gr_gid;
 	} else {
-		syslog(LOG_ERR, "Unable to getgrnam(): %s", strerror(errno));
-		std::cerr << "Unable to getgrnam(): " << strerror(errno) << std::endl;
+		syslog(LOG_ERR, "Unable to getgrnam(): %s", ErrStr().c_str());
+		std::cerr << "Unable to getgrnam(): " << ErrStr() << std::endl;
 		return 1;
 	}
 

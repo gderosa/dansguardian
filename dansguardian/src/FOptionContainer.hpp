@@ -1,24 +1,9 @@
 // FOptionContainer class - contains the options for a filter group,
 // including the banned/grey/exception site lists and the content/site/url regexp lists
 
-//Please refer to http://dansguardian.org/?page=copyright2
-//for the license for this code.
-//Written by Daniel Barron (daniel@//jadeb/.com).
-//For support go to http://groups.yahoo.com/group/dansguardian
-
-//  This program is free software; you can redistribute it and/or modify
-//  it under the terms of the GNU General Public License as published by
-//  the Free Software Foundation; either version 2 of the License, or
-//  (at your option) any later version.
-//
-//  This program is distributed in the hope that it will be useful,
-//  but WITHOUT ANY WARRANTY; without even the implied warranty of
-//  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-//  GNU General Public License for more details.
-//
-//  You should have received a copy of the GNU General Public License
-//  along with this program; if not, write to the Free Software
-//  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+// For all support, instructions and copyright go to:
+// http://dansguardian.org/
+// Released under the GPL v2, with the OpenSSL exception described in the README file.
 
 #ifndef __HPP_FOPTIONCONTAINER
 #define __HPP_FOPTIONCONTAINER
@@ -55,7 +40,19 @@ public:
 	int searchterm_limit;
 	bool createlistcachefiles;
 	bool enable_PICS;
+	bool enable_regex_grey;
 	bool deep_url_analysis;
+	off_t max_upload_size;
+
+#ifdef __SSLCERT
+	//SSL certificate checking
+	bool ssl_check_cert;
+#endif //__SSLCERT
+
+#ifdef __SSLMITM
+	//SSL Man in the middle
+	bool ssl_mitm;
+#endif //__SSLMITM 
 
 #ifdef ENABLE_EMAIL
 	// Email notification patch by J. Gauthier
@@ -162,6 +159,7 @@ public:
 	std::string magic;
 	std::string imagic;
 	std::string cookie_magic;
+	std::string mitm_magic;
 
 #ifdef ENABLE_EMAIL
 	// Email notification patch by J. Gauthier
@@ -246,10 +244,20 @@ public:
 		exception_extension_flag(false), exception_mimetype_flag(false),
 		exception_file_site_flag(false), exception_file_url_flag(false),
 		log_site_flag(false), log_url_flag(false), log_regexpurl_flag(false),
-		searchengine_regexp_flag(false) {};
+		searchengine_regexp_flag(false), pics_icra_nuditymalegraphic(0),
+		pics_icra_nudityfemalegraphic(0), pics_icra_nuditytopless(0), pics_icra_nuditybottoms(0),
+		pics_icra_nuditysexualacts(0), pics_icra_nudityobscuredsexualacts(0), pics_icra_nuditysexualtouching(0),
+		pics_icra_nuditykissing(0), pics_icra_nudityartistic(0), pics_icra_nudityeducational(0),
+		pics_icra_nuditymedical(0), pics_icra_drugstobacco(0), pics_icra_drugsalcohol(0), pics_icra_drugsuse(0),
+		pics_icra_gambling(0), pics_icra_weaponuse(0), pics_icra_intolerance(0), pics_icra_badexample(0),
+		pics_icra_pgmaterial(0), pics_icra_violencerape(0), pics_icra_violencetohumans(0),
+		pics_icra_violencetoanimals(0), pics_icra_violencetofantasy(0), pics_icra_violencekillinghumans(0),
+		pics_icra_violencekillinganimals(0), pics_icra_violencekillingfantasy (0) {};
 	~FOptionContainer();
 	bool read(const char *filename);
 	void reset();
+	void resetJustListData();
+	
 	bool isOurWebserver(String url);
 	char *inBannedSiteList(String url, bool doblanket = false, bool ip = false, bool ssl = false);
 	char *inBannedURLList(String url, bool doblanket = false, bool ip = false, bool ssl = false);
