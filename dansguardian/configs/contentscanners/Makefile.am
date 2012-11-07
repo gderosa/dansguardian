@@ -13,6 +13,10 @@ if ENABLE_CLAMD
 FLISTS += clamdscan.conf
 endif
 
+if ENABLE_AVASTD
+FLISTS += avastdscan.conf
+endif
+
 if ENABLE_ICAP
 FLISTS += icapscan.conf
 endif
@@ -25,7 +29,7 @@ if ENABLE_COMMANDLINE
 FLISTS += commandlinescan.conf
 endif
 
-EXTRA_DIST = clamdscan.conf.in icapscan.conf.in \
+EXTRA_DIST = clamdscan.conf.in avastdscan.conf.in icapscan.conf.in \
              kavdscan.conf.in commandlinescan.conf.in
 
 install-data-local: 

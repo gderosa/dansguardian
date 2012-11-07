@@ -86,6 +86,7 @@ You may change with the configure options:
   enable-static-zlib
                    (enable static linking against zlib)
   enable-clamd     (enable support for clamd antivirus scanner)
+  enable-avastd    (enable support for avastd antivirus scanner)
   enable-icap      (enable support for ICAP-compatible av scanner)
   enable-commandline
                    (enable support for the command-line av scanner)

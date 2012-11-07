@@ -15,6 +15,12 @@ else
 CLAMDSCAN_SOURCE =
 endif
 
+if ENABLE_AVASTD
+AVASTDSCAN_SOURCE = contentscanners/avastdscan.cpp
+else
+AVASTDSCAN_SOURCE =
+endif
+
 if ENABLE_ICAP
 ICAPSCAN_SOURCE = contentscanners/icapscan.cpp
 else
@@ -75,7 +81,8 @@ dansguardian_CPPFLAGS = -D__CONFFILE='"$(DGCONFFILE)"' \
 			-D__PROXYGROUP='"$(DGPROXYGROUP)"' \
 			-D__CONFDIR='"$(DGCONFDIR)"' \
 			$(AM_CPPFLAGS)
-dansguardian_SOURCES = String.cpp String.hpp \
+dansguardian_SOURCES = Debug.cpp Debug.hpp \
+                       String.cpp String.hpp \
                        FDTunnel.cpp FDTunnel.hpp \
                        ConnectionHandler.cpp ConnectionHandler.hpp \
                        DataBuffer.cpp DataBuffer.hpp \
@@ -107,8 +114,10 @@ dansguardian_SOURCES = String.cpp String.hpp \
 		       SocketArray.cpp SocketArray.hpp \
                        dansguardian.cpp \
 		       Plugin.hpp \
+                       CertificateAuthority.cpp CertificateAuthority.hpp \
 		       $(ICAPSCAN_SOURCE) \
 		       $(KAVDSCAN_SOURCE) $(CLAMDSCAN_SOURCE) \
+		       $(AVASTDSCAN_SOURCE) \
 		       $(COMMANDLINE_SOURCE) \
 		       $(DEFAULTDM_SOURCE) $(FANCYDM_SOURCE) \
 		       $(TRICKLEDM_SOURCE) $(PROXYAUTH_SOURCE) \

@@ -1,49 +1,49 @@
 # DansGuardian 2.8 messages file in Hungarian
 
-"1","A hozzáférés tiltott"
+"1","A hozzfrs tiltott"
 
-"100","Az Ön IP címe nem engedélyezett ehhez a böngészõhöz: "
-"101","Az Ön IP címe nem engedélyezett ehhez a böngészõhöz."
-"102","A felhasználóneve nem engedélyezett ehhez e aböngészõhöz: "
+"100","Az n IP cme nem engedlyezett ehhez a bngszhz: "
+"101","Az n IP cme nem engedlyezett ehhez a bngszhz."
+"102","A felhasznlneve nem engedlyezett ehhez e abngszhz: "
 
-"200","A kért URL formátuma nem tûnik biztonságosnak."
+"200","A krt URL formtuma nem tnik biztonsgosnak."
 
-"300","Tiltott kifejezés: "
-"301","Tiltott kifejezés."
+"300","Tiltott kifejezs: "
+"301","Tiltott kifejezs."
 
-"400","Tiltott összetételû kifejezés: "
-"401","Tiltott összetételû kifejezés."
-"402","A súlyozott kifejezés határa "
-"403","A súlyozott kifejezés elérte a határát."
+"400","Tiltott sszettel kifejezs: "
+"401","Tiltott sszettel kifejezs."
+"402","A slyozott kifejezs hatra "
+"403","A slyozott kifejezs elrte a hatrt."
 
 "500","Tiltott oldal: "
 "501","Tiltott URL: "
-"502","A domain-alapú szûrés aktív és ez az oldal sem a 'fehér', sem a 'szürke' listán nincs fent."
-"503","Tiltott reguláris kifejezésû URL: "
-"504","Tiltott reguláris kifejezésû URL."
-"505","A címtartomány alapú szûrés aktív és ez csak egy egyszerû IP-cím."
+"502","A domain-alap szrs aktv s ez az oldal sem a 'fehr', sem a 'szrke' listn nincs fent."
+"503","Tiltott regulris kifejezs URL: "
+"504","Tiltott regulris kifejezs URL."
+"505","A cmtartomny alap szrs aktv s ez csak egy egyszer IP-cm."
 
-"600","Kifogásolható kliens IP egyezés."
-"601","Kifogásolható kliens felhasználó egyezés."
-"602","Kifogásolható oldalegyezés."
-"603","Kifogásolható URL-egyezés."
-"604","Kifogásolható kifejezés: "
-"605","Kombinációs kifogásolható kifejezés: "
-"606","Továbbugrató URL kifogás."
-"607","Továbbugrató süti kifogás."
+"600","Kifogsolhat kliens IP egyezs."
+"601","Kifogsolhat kliens felhasznl egyezs."
+"602","Kifogsolhat oldalegyezs."
+"603","Kifogsolhat URL-egyezs."
+"604","Kifogsolhat kifejezs: "
+"605","Kombincis kifogsolhat kifejezs: "
+"606","Tovbbugrat URL kifogs."
+"607","Tovbbugrat sti kifogs."
 "608","Scan bypass URL exception."
 "609","Exception regular expression URL match: "
 
-"700","A Webre történõ feltöltés tiltva."
-"701","A Webre történõ feltöltés korlátját elérte."
+"700","A Webre trtn feltlts tiltva."
+"701","A Webre trtn feltlts korltjt elrte."
 
-"800","Tiltott MIME Típus: "
+"800","Tiltott MIME Tpus: "
 
-"900","Tiltott kiterjesztés: "
+"900","Tiltott kiterjeszts: "
 
-"1000","A PICS szervezet jelölési szintjét elérte a felsõ oldal."
+"1000","A PICS szervezet jellsi szintjt elrte a fels oldal."
 
-"1100","Vírussal fetõzött állomány."
+"1100","Vrussal fetztt llomny."
 "1101","Advert blocked"
 
 "1200","Please wait - downloading to be scanned..."

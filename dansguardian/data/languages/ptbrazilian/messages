@@ -1,57 +1,57 @@
 # DansGuardian 2.10 messages in Brazilian Portuguese
-# Mensagens do DansGuardian 2.10 file em PortuguÍs do Brasil (pt-BR)
+# Mensagens do DansGuardian 2.10 file em Portugu√™s do Brasil (pt-BR)
 # Translated/traduzido (?) by/por Henrique Araujo - Sys Admin
 # Updated/atualizado by/por Allan Cassaro Gomes
 # henrique@colegiosaogoncalo.g12.br / allan.cassaro@gmail.com
-# Cuiab· - MT, Brasil / Brasilia - DF, Brasil
+# Cuiab√° - MT, Brasil / Brasilia - DF, Brasil
 
 "1","Acesso negado."
 
-"100","Seu endereÁo IP n„o tem permiss„o de acesso ‡ web: "
-"101","Seu endereÁo IP n„o tem permiss„o de acesso ‡ web: "
-"102","Esse nome de usu·rio n„o tem permiss„o de acesso ‡ web: "
+"100","Seu endere√ßo IP n√£o tem permiss√£o de acesso √† web: "
+"101","Seu endere√ßo IP n√£o tem permiss√£o de acesso √† web: "
+"102","Esse nome de usu√°rio n√£o tem permiss√£o de acesso √† web: "
 
-"200","A URL requerida est· mal formada."
+"200","A URL requerida est√° mal formada."
 
 "300","Encontrada frase proibida: "
 "301","Encontrada frase proibida: "
 
-"400","Encontrada combinaÁ„o de frases proibida: "
-"401","Encontrada combinaÁ„o de frases proibida: "
+"400","Encontrada combina√ß√£o de frases proibida: "
+"401","Encontrada combina√ß√£o de frases proibida: "
 "402","Limite de frase ponderada de "
 "403","Limite de frase ponderada excedido."
 
-"500","SÌtio proibido: "
+"500","S√≠tio proibido: "
 "501","URL proibida: "
-"502","Bloqueio geral est· ativo e aquele sÌtio n„o est· na lista livre."
-"503","Express„o Regular proibida em URL: "
-"504","Encontrada Express„o Regular proibida em URL: "
-"505","Bloqueio geral de IP est· ativo e aquele endereÁo n„o possui nome."
+"502","Bloqueio geral est√° ativo e aquele s√≠tio n√£o est√° na lista livre."
+"503","Express√£o Regular proibida em URL: "
+"504","Encontrada Express√£o Regular proibida em URL: "
+"505","Bloqueio geral de IP est√° ativo e aquele endere√ßo n√£o possui nome."
 
-"600","Cliente IP est· na lista de exceÁıes."
-"601","Usu·rio est· na lista de exceÁıes."
-"602","SÌtio est· na lista de exceÁıes."
-"603","URL est· na lista de exceÁıes."
-"604","Encontrada frase na lista de exceÁıes: "
-"605","Encontrada combinaÁ„o de frases na lista de exceÁıes: "
-"606","Desvio tempor·rio de bloqueio (Bypass URL.)"
-"607","Desvio tempor·rio de bloqueio (Bypass cookie.)"
+"600","Cliente IP est√° na lista de exce√ß√µes."
+"601","Usu√°rio est√° na lista de exce√ß√µes."
+"602","S√≠tio est√° na lista de exce√ß√µes."
+"603","URL est√° na lista de exce√ß√µes."
+"604","Encontrada frase na lista de exce√ß√µes: "
+"605","Encontrada combina√ß√£o de frases na lista de exce√ß√µes: "
+"606","Desvio tempor√°rio de bloqueio (Bypass URL.)"
+"607","Desvio tempor√°rio de bloqueio (Bypass cookie.)"
 "608","Scan bypass URL exception."
 "609","Exception regular expression URL match: "
 
-"700","TransferÍncia de arquivos para web proibida."
-"701","Limite de transferÍncia de arquivos para web excedido."
+"700","Transfer√™ncia de arquivos para web proibida."
+"701","Limite de transfer√™ncia de arquivos para web excedido."
 
 "800","Tipo MIME proibido: "
 
-"900","Extens„o proibida: "
+"900","Extens√£o proibida: "
 
-"1000","NÌvel de rotulagem PICS excedido no sÌtio acima."
+"1000","N√≠vel de rotulagem PICS excedido no s√≠tio acima."
 
-"1100","VÌrus ou conte˙do perigoso encontrado."
+"1100","V√≠rus ou conte√∫do perigoso encontrado."
 "1101","Advert blocked"
 
-"1200","Por favor espere - O download ser· verificado..."
-"1210","Download Completo.  Iniciando a verificaÁ„o..."
-"1220","VerificaÁ„o completa.</p><p>Clique aqui para baixar: "
-"1230","O arquivo n„o est· mais disponÌvel"
+"1200","Por favor espere - O download ser√° verificado..."
+"1210","Download Completo.  Iniciando a verifica√ß√£o..."
+"1220","Verifica√ß√£o completa.</p><p>Clique aqui para baixar: "
+"1230","O arquivo n√£o est√° mais dispon√≠vel"

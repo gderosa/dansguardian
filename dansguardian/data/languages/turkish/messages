@@ -21,7 +21,7 @@
 "500","Yasaklanmis Site: "
 "501","Yasaklanmis URL: "
 "502","Erisilebilir listesinde bulunmayan bir siteye giremezsiniz."
-"503","Yasaklanmis düzensiz ifade (URL): "
+"503","Yasaklanmis dzensiz ifade (URL): "
 "504","Yasaklanmis duzensiz ifadeye rastlandi."
 "505","Bu IP adresinin asagidaki siteye girisi engellenmistir."
 
@@ -36,10 +36,10 @@
 "608","Ayricalikli URL adresi taraniyor."
 "609","Ayricalikli duzenlenmis url adresi: "
 
-"700","Internet üzerinden dosya gönderimi yasaklanmistir."
-"701","Internet üzerinden dosya gönderimi sinirini astiniz."
+"700","Internet zerinden dosya gnderimi yasaklanmistir."
+"701","Internet zerinden dosya gnderimi sinirini astiniz."
 
-"800","Yasaklanmis MIME Türü: "
+"800","Yasaklanmis MIME Tr: "
 
 "900","Yasaklanmis dosya uzantisi: "
 

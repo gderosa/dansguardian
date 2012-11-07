@@ -1,21 +1,6 @@
-//Please refer to http://dansguardian.org/?page=copyright2
-//for the license for this code.
-//Written by Daniel Barron (daniel@jadeb//.com).
-//For support go to http://groups.yahoo.com/group/dansguardian
-
-//  This program is free software; you can redistribute it and/or modify
-//  it under the terms of the GNU General Public License as published by
-//  the Free Software Foundation; either version 2 of the License, or
-//  (at your option) any later version.
-//
-//  This program is distributed in the hope that it will be useful,
-//  but WITHOUT ANY WARRANTY; without even the implied warranty of
-//  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-//  GNU General Public License for more details.
-//
-//  You should have received a copy of the GNU General Public License
-//  along with this program; if not, write to the Free Software
-//  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+// For all support, instructions and copyright go to:
+// http://dansguardian.org/
+// Released under the GPL v2, with the OpenSSL exception described in the README file.
 
 #ifndef __HPP_CONNECTIONHANDLER
 #define __HPP_CONNECTIONHANDLER
@@ -65,14 +50,18 @@ public:
 	~ConnectionHandler() { delete clienthost; };
 
 	// pass data between proxy and client, filtering as we go.
-	void handleConnection(Socket &peerconn, String &ip);
-
+	void handlePeer(Socket &peerconn, String &ip);
 private:
-	std::string *clienthost;
+	int filtergroup;
 	bool matchedip;
-	std::string urlparams;
+	bool persistent_authed;
 
+	std::string clientuser;
+	std::string *clienthost;
+	std::string urlparams;
 	std::list<postinfo> postparts;
+
+	void handleConnection(Socket &peerconn, String &ip);
 
 	// write a log entry containing the given data (if required)
 	void doLog(std::string &who, std::string &from, String &where, unsigned int &port,
@@ -90,7 +79,7 @@ private:
 
 	// check the request header is OK (client host/user/IP allowed to browse, site not banned, upload not too big)
 	void requestChecks(HTTPHeader *header, NaughtyFilter *checkme, String *urld, String *url, std::string *clientip,
-		std::string *clientuser, int filtergroup, bool &isbanneduser, bool &isbannedip);
+		std::string *clientuser, int filtergroup, bool &isbanneduser, bool &isbannedip, std::string &room);
 
 	// strip the URL down to just the IP/hostname, then do an isIPHostname on the result
 	bool isIPHostnameStrip(String url);
@@ -98,11 +87,11 @@ private:
 	// show the relevant banned page depending upon the report level settings, request type, etc.
 	bool denyAccess(Socket *peerconn, Socket *proxysock, HTTPHeader *header, HTTPHeader *docheader,
 		String *url, NaughtyFilter *checkme, std::string *clientuser, std::string *clientip,
-		int filtergroup, bool ispostblock, int headersent, bool wasinfected, bool scanerror);
+		int filtergroup, bool ispostblock, int headersent, bool wasinfected, bool scanerror, bool forceshow = false);
 
 	// create temporary ban bypass URLs/cookies
 	String hashedURL(String *url, int filtergroup, std::string *clientip, bool infectionbypass);
-	String hashedCookie(String *url, int filtergroup, std::string *clientip, int bypasstimestamp);
+	String hashedCookie(String *url, const char *magic, std::string *clientip, int bypasstimestamp);
 
 	// do content scanning (AV filtering) and naughty filtering
 	void contentFilter(HTTPHeader *docheader, HTTPHeader *header, DataBuffer *docbody, Socket *proxysock,
@@ -113,6 +102,14 @@ private:
 
 	// send a file to the client - used during bypass of blocked downloads
 	off_t sendFile(Socket *peerconn, String & filename, String & filemime, String & filedis, String &url);
+	
+#ifdef __SSLCERT
+	//ssl certificat checking
+	void checkCertificate(String &hostname, Socket * sslSock, NaughtyFilter * checkme);
+	
+	int sendProxyConnect(String &hostname, Socket * sock, NaughtyFilter * checkme);
+#endif //__SSLCERT
+
 };
 
 #endif

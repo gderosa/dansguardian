@@ -1,23 +1,8 @@
 //Implements the HTMLTemplate class, for displaying template-based banned pages to clients
 
-//Please refer to http://dansguardian.org/?page=copyright
-//for the license for this code.
-//Written by Daniel Barron (daniel@//jadeb.com).
-//For support go to http://groups.yahoo.com/group/dansguardian
-
-//  This program is free software; you can redistribute it and/or modify
-//  it under the terms of the GNU General Public License as published by
-//  the Free Software Foundation; either version 2 of the License, or
-//  (at your option) any later version.
-//
-//  This program is distributed in the hope that it will be useful,
-//  but WITHOUT ANY WARRANTY; without even the implied warranty of
-//  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-//  GNU General Public License for more details.
-//
-//  You should have received a copy of the GNU General Public License
-//  along with this program; if not, write to the Free Software
-//  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+// For all support, instructions and copyright go to:
+// http://dansguardian.org/
+// Released under the GPL v2, with the OpenSSL exception described in the README file.
 
 
 // INCLUDES
@@ -176,8 +161,9 @@ void HTMLTemplate::display(Socket *s, String *url, std::string &reason, std::str
 				std::cout<<"-HOST- placeholder encountered but hostname currently unknown; lookup forced."<<std::endl;
 #endif
 				std::deque<String> *names = ipToHostname(ip->c_str());
-				if (names->size() > 0)
-					host = new std::string(names->front().toCharArray());
+				if (names->size() > 0) {
+					*host = names->front();
+				}
 				delete names;
 			}
 			line = (host ? *host : "");
@@ -218,12 +204,12 @@ void HTMLTemplate::display(Socket *s, String *url, std::string &reason, std::str
 			}
 		}
 		if (line.length() > 0) {
-			(*s).writeString(line.toCharArray());
+			s->writeString(line.toCharArray());
 		}
 		if (newline) {
-			(*s).writeString("\n");
+			s->writeString("\n");
 		}
 	}
-	(*s).writeString(html[sz].toCharArray());
-	(*s).writeString("\n");
+	s->writeString(html[sz].toCharArray());
+	s->writeString("\n");
 }

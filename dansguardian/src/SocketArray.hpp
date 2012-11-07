@@ -1,21 +1,8 @@
 // SocketArray - wrapper for clean handling of an array of Sockets
 
-//Please refer to http://dansguardian.org/?page=copyright2
-//for the license for this code.
-
-//  This program is free software; you can redistribute it and/or modify
-//  it under the terms of the GNU General Public License as published by
-//  the Free Software Foundation; either version 2 of the License, or
-//  (at your option) any later version.
-//
-//  This program is distributed in the hope that it will be useful,
-//  but WITHOUT ANY WARRANTY; without even the implied warranty of
-//  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-//  GNU General Public License for more details.
-//
-//  You should have received a copy of the GNU General Public License
-//  along with this program; if not, write to the Free Software
-//  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+// For all support, instructions and copyright go to:
+// http://dansguardian.org/
+// Released under the GPL v2, with the OpenSSL exception described in the README file.
 
 #ifndef __HPP_SOCKETARRAY
 #define __HPP_SOCKETARRAY
@@ -45,7 +32,7 @@ public:
 	void deleteAll();
 
 	// bind our sockets to the given IPs
-	int bindAll(std::deque<String> &ips, int port);
+	int bindAll(std::deque<String> &ips, std::deque<String> &ports);
 	// bind just the one, to all available IPs
 	int bindSingle(int port);
 	// set all sockets listening with given kernel queue length

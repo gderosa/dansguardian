@@ -1,25 +1,6 @@
-//Please refer to http://dansguardian.org/?page=copyright2
-//for the license for this code.
-//Written by Daniel Barron (daniel@//jadeb.com).
-//For support go to http://groups.yahoo.com/group/dansguardian
-
-//  This program is free software; you can redistribute it and/or modify
-//  it under the terms of the GNU General Public License as published by
-//  the Free Software Foundation; either version 2 of the License, or
-//  (at your option) any later version.
-//
-//  This program is distributed in the hope that it will be useful,
-//  but WITHOUT ANY WARRANTY; without even the implied warranty of
-//  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-//  GNU General Public License for more details.
-//
-//  You should have received a copy of the GNU General Public License
-//  along with this program; if not, write to the Free Software
-//  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
-
-//This file contains modifications suggested and mostly provided by
-//Daniel Robbins 13/4/01 drobbins@gento.org
-//Modifications include, but not limited to, getcontenttype(), << , >>
+// For all support, instructions and copyright go to:
+// http://dansguardian.org/
+// Released under the GPL v2, with the OpenSSL exception described in the README file.
 
 
 // INCLUDES
@@ -36,6 +17,7 @@
 #include <sys/socket.h>
 #include <exception>
 #include <time.h>
+#include <string.h>
 #include <syslog.h>
 #include <cerrno>
 #include <zlib.h>
@@ -73,11 +55,14 @@ void HTTPHeader::reset()
 		pcontentlength = NULL;
 		pcontenttype = NULL;
 		pproxyauthorization = NULL;
+		pauthorization = NULL;
+		pproxyauthenticate = NULL;
 		pcontentdisposition = NULL;
 		puseragent = NULL;
 		pxforwardedfor = NULL;
 		pcontentencoding = NULL;
 		pproxyconnection = NULL;
+		pkeepalive = NULL;
 		
 		dirty = false;
 
@@ -119,7 +104,7 @@ off_t HTTPHeader::contentLength()
 	if (temp.startsWith("304"))
 		contentlength = 0;
 	else if (pcontentlength != NULL) {
-		temp = pcontentlength->after(" ");
+		temp = pcontentlength->after(":");
 		contentlength = temp.toOffset();
 	}
 
@@ -342,9 +327,9 @@ void HTTPHeader::makePersistent(bool persist)
 		// earlier.
 		if (waspersistent && !ispersistent) {
 			if (pproxyconnection != NULL) {
-				(*pproxyconnection) = pproxyconnection->before(":") + ": Keep-Alive\r";
+				(*pproxyconnection) = pproxyconnection->before(":") + ": keep-alive\r";
 			} else {
-				header.push_back(String("Proxy-Connection: Keep-Alive\r"));
+				header.push_back(String("Connection: keep-alive\r"));
 				pproxyconnection = &(header.back());
 			}
 			ispersistent = true;
@@ -353,13 +338,56 @@ void HTTPHeader::makePersistent(bool persist)
 		// Only downgrade to non-persistent if it isn't currently persistent.
 		if (ispersistent) {
 			if (pproxyconnection != NULL) {
-				(*pproxyconnection) = pproxyconnection->before(":") + ": Close\r";
+				(*pproxyconnection) = pproxyconnection->before(":") + ": close\r";
 			} else {
-				header.push_back(String("Proxy-Connection: Close\r"));
+				header.push_back(String("Connection: close\r"));
 				pproxyconnection = &(header.back());
 			}
 			ispersistent = false;
 		}
+	}
+}
+
+// make the request look like it's come from/to the origin server
+void HTTPHeader::makeTransparent(bool incoming)
+{
+#ifdef DGDEBUG
+	std::cout << "Making headers transparent" << std::endl;
+#endif
+	if (incoming) {
+		// remove references to the proxy before sending to browser
+		if (pproxyconnection != NULL) {
+			String temp = pproxyconnection->after(":");
+			(*pproxyconnection) = "Connection:";
+			(*pproxyconnection) += temp;
+		}
+		if (pproxyauthenticate != NULL) {
+			String temp = pproxyauthenticate->after(":");
+			(*pproxyauthenticate) = "WWW-Authenticate:";
+			(*pproxyauthenticate) += temp;
+		}
+		if (returnCode() == 407) {
+			String temp = header.front().before(" ");
+			String temp2 = header.front().after(" ").after(" ");
+			header.front() = temp + " 401 ";
+			header.front() += temp2;
+		}
+	} else {
+		// remove references to origin server before sending to proxy
+		if (pauthorization != NULL) {
+			String temp = pauthorization->after(":");
+			(*pauthorization) = "Proxy-Authorization:";
+			(*pauthorization) += temp;
+			pproxyauthorization = pauthorization;
+			pauthorization = NULL;
+		}
+		if (pproxyconnection != NULL) {
+			String temp = pproxyconnection->after(":");
+			(*pproxyconnection) = "Connection:";
+			(*pproxyconnection) += temp;
+		}
+		// call this to fudge the URL into something Squid likes
+		getUrl();
 	}
 }
 
@@ -385,6 +413,10 @@ String HTTPHeader::modifyEncodings(String e)
 #endif
 	if (e.contains("deflate")) {
 		o += ",deflate";
+	}
+
+	if (e.contains("pack200-gzip")) {
+		o += ",pack200-gzip";
 	}
 
 	return o;
@@ -488,7 +520,7 @@ void HTTPHeader::setURL(String &url) {
 		std::cout << " to " << (*pport) << std::endl;
 #endif
 	}
-	// Don't just cache the URL we're sent - url() performs some other
+	// Don't just cache the URL we're sent - getUrl() performs some other
 	// processing, notably stripping the port part. Caching here will
 	// bypass all that.
 	//cachedurl = url.toCharArray();
@@ -583,7 +615,7 @@ bool HTTPHeader::urlRegExp(int filtergroup) {
 #ifdef DGDEBUG
 	std::cout << "Starting URL reg exp replace" << std::endl;
 #endif
-	String newUrl(url());
+	String newUrl(getUrl());
 	if (regExp(newUrl, o.fg[filtergroup]->url_regexp_list_comp, o.fg[filtergroup]->url_regexp_list_rep)) {
 		setURL(newUrl);
 		return true;
@@ -718,7 +750,7 @@ bool HTTPHeader::malformedURL(const String& url)
 // are case-insensitive. - Anonymous SF Poster, 2006-02-23
 void HTTPHeader::checkheader(bool allowpersistent)
 {
-	// are these headers outgoing, or incoming?
+	// are these headers outgoing (from browser), or incoming (from web server)?
 	bool outgoing = true;
 	if (header.front().startsWith("HT"))
 	{
@@ -747,6 +779,14 @@ void HTTPHeader::checkheader(bool allowpersistent)
 			(*i) = "Accept-Encoding:" + i->after(":");
 			(*i) = modifyEncodings(*i) + "\r";
 		}
+		else if ((!outgoing) && (pcontentencoding == NULL) && i->startsWithLower("content-encoding:"))
+		{
+			pcontentencoding = &(*i);
+		}
+		else if ((!outgoing) && (pkeepalive == NULL) && i->startsWithLower("keep-alive:"))
+		{
+			pkeepalive = &(*i);
+		}
 		else if ((pcontenttype == NULL) && i->startsWithLower("content-type:"))
 		{
 			pcontenttype = &(*i);
@@ -760,13 +800,15 @@ void HTTPHeader::checkheader(bool allowpersistent)
 		{
 			pcontentdisposition = &(*i);
 		}
-		else if ((!outgoing) && (pcontentencoding == NULL) && i->startsWithLower("content-encoding:"))
-		{
-			pcontentencoding = &(*i);
-		}
 		else if ((pproxyauthorization == NULL) && i->startsWithLower("proxy-authorization:"))
 		{
 			pproxyauthorization = &(*i);
+		}
+		else if ((pauthorization == NULL) && i->startsWithLower("authorization:")) {
+			pauthorization = &(*i);
+		}
+		else if ((pproxyauthenticate == NULL) && i->startsWithLower("proxy-authenticate:")) {
+			pproxyauthenticate = &(*i);
 		}
 		else if ((pproxyconnection == NULL) && (i->startsWithLower("proxy-connection:") || i->startsWithLower("connection:")))
 		{
@@ -777,7 +819,7 @@ void HTTPHeader::checkheader(bool allowpersistent)
 			pxforwardedfor = &(*i);
 		}
 		// this one's non-standard, so check for it last
-		else if (outgoing && (pport = NULL) && i->startsWithLower("port:"))
+		else if (outgoing && (pport == NULL) && i->startsWithLower("port:"))
 		{
 			pport = &(*i);
 		}
@@ -818,7 +860,7 @@ void HTTPHeader::checkheader(bool allowpersistent)
 	}
 	else
 	{
-		connectionclose = !onepointone;
+		connectionclose = true;
 	}
 	
 	// Do not allow persistent connections on CONNECT requests - the browser thinks it has a tunnel
@@ -843,17 +885,20 @@ void HTTPHeader::checkheader(bool allowpersistent)
 		// couldnt have done persistency even if we wanted to
 		allowpersistent = false;
 	}
-	else
-	{
-		//must have been persistent 
-		waspersistent = true;
-	}
 
-	// Even though persistent CONNECT requests usually break things, waspersistent should
-	// reflect the intention of the original request headers, or NTLM breaks.
-	if (outgoing && isconnect && !connectionclose)
+	if (outgoing)
 	{
-		waspersistent = true;
+		// Even though persistent CONNECT requests usually break things, waspersistent should
+		// reflect the intention of the original request headers, or NTLM breaks.
+		if(isconnect && !connectionclose)
+		{
+			waspersistent = true;
+		}
+	} else
+	{
+		if(!connectionclose && !(pcontentlength == NULL)) {
+			waspersistent = true;
+		}
 	}
 
 #ifdef DGDEBUG
@@ -861,7 +906,7 @@ void HTTPHeader::checkheader(bool allowpersistent)
 #endif
 
 	// force the headers to reflect whether or not persistency is allowed
-	// (modify pproxyconnection if its there, add our own explicit close/keep-alive otherwise)
+	// (modify pproxyconnection or add connection close/keep-alive - Client version, of course)
 	if (allowpersistent)
 	{
 		if (pproxyconnection == NULL)
@@ -869,12 +914,12 @@ void HTTPHeader::checkheader(bool allowpersistent)
 #ifdef DGDEBUG
 			std::cout << "CheckHeader: Adding our own Proxy-Connection: Keep-Alive" << std::endl;
 #endif
-			header.push_back("Proxy-Connection: Keep-Alive\r");
+			header.push_back("Connection: keep-alive\r");
 			pproxyconnection = &(header.back());
 		}
 		else
 		{
-			(*pproxyconnection) = pproxyconnection->before(":") + ": Keep-Alive\r";
+			(*pproxyconnection) = "Connection: keep-alive\r";
 		}
 	}
 	else
@@ -884,12 +929,12 @@ void HTTPHeader::checkheader(bool allowpersistent)
 #ifdef DGDEBUG
 			std::cout << "CheckHeader: Adding our own Proxy-Connection: Close" << std::endl;
 #endif
-			header.push_back("Proxy-Connection: Close\r");
+			header.push_back("Connection: close\r");
 			pproxyconnection = &(header.back());
 		}
 		else
 		{
-			(*pproxyconnection) = pproxyconnection->before(":") + ": Close\r";
+			(*pproxyconnection) = "Connection: close\r";
 		}
 	}
 	
@@ -898,13 +943,13 @@ void HTTPHeader::checkheader(bool allowpersistent)
 	// Normalise request headers (fix host, port, first line of header, etc. to all be consistent)
 	if (outgoing)
 	{
-		String newurl(url(true));
+		String newurl(getUrl(true));
 		setURL(newurl);
 	}
 }
 
 // A request may be in the form:
-//  GET http://foo.bar:80/ HTML/1.0 (if :80 is omitted 80 is assumed)
+//  GET http://foo.bar:80/ HTTP/1.0 (if :80 is omitted 80 is assumed)
 // or:
 //  GET / HTML/1.0
 //  Host: foo.bar (optional header in HTTP/1.0, but like HTTP/1.1, we require it!)
@@ -913,7 +958,7 @@ void HTTPHeader::checkheader(bool allowpersistent)
 //  CONNECT foo.bar:443  HTTP/1.1
 // So we need to handle all 3
 
-String HTTPHeader::url(bool withport)
+String HTTPHeader::getUrl(bool withport, bool isssl)
 {
 	// Version of URL *with* port is not cached,
 	// as vast majority of our code doesn't like
@@ -923,6 +968,7 @@ String HTTPHeader::url(bool withport)
 	port = 80;
 	bool https = false;
 	String hostname;
+	String userpassword;
 	String answer(header.front().after(" "));
 	answer.removeMultiChar(' ');
 	if (answer.after(" ").startsWith("HTTP/")) {
@@ -972,11 +1018,15 @@ String HTTPHeader::url(bool withport)
 			hostname = answer.after("://");
 			String url(hostname.after("/"));
 			url.removeWhiteSpace();  // remove rubbish like ^M and blanks
+			if (hostname.endsWith(".")) {
+				hostname.chop();
+			}
 			if (url.length() > 0) {
 				url = "/" + url;
 			}
 			hostname = hostname.before("/");  // extra / was added 4 here
 			if (hostname.contains("@")) {	// Contains a username:password combo
+				userpassword = hostname.before("@");
 				hostname = hostname.after("@");
 			}
 			if (hostname.contains(":")) {
@@ -990,12 +1040,24 @@ String HTTPHeader::url(bool withport)
 				hostname.chop();
 			if (withport && (port != (https ? 443 : 80)))
 				hostname += ":" + String(port);
-			answer = protocol + "://" + hostname + url;
+			if (userpassword.length())
+				answer = protocol + "://" + userpassword + "@" + hostname + url;
+			else
+				answer = protocol + "://" + hostname + url;
 		}
 	}
 	if (answer.endsWith("//")) {
 		answer.chop();
 	}
+	
+	
+	//make sure ssl stuff is logged as https
+#ifdef __SSLMITM
+	if(isssl){
+		answer = "https://" + answer.after("://");
+	}
+#endif
+	
 #ifdef DGDEBUG
 	std::cout << "from header url:" << answer << std::endl;
 #endif
@@ -1040,6 +1102,21 @@ void HTTPHeader::chopScanBypass(String url)
 		} else {
 			String bypass(url.after("&GSBYPASS="));
 			header.front() = header.front().before("&GSBYPASS=") + header.front().after(bypass.toCharArray());
+		}
+	}
+	cachedurl = "";
+}
+
+// same for MITM accept
+void HTTPHeader::chopMITMAccept(String url)
+{
+	if (url.contains("GMACCEPT=")) {
+		if (url.contains("?GMACCEPT=")) {
+			String bypass(url.after("?GMACCEPT="));
+			header.front() = header.front().before("?GMACCEPT=") + header.front().after(bypass.toCharArray());
+		} else {
+			String bypass(url.after("&GMACCEPT="));
+			header.front() = header.front().before("&GMACCEPT=") + header.front().after(bypass.toCharArray());
 		}
 	}
 	cachedurl = "";
@@ -1122,6 +1199,116 @@ bool HTTPHeader::isBypassCookie(String url, const char *magic, const char *clien
 	if (timeu < timen) {
 #ifdef DGDEBUG
 		std::cout << "Cookie GBYPASS expired: " << timeu << " " << timen << std::endl;
+#endif
+		return false;
+	}
+	return true;
+}
+
+// is this a MITM acceptance URL?
+bool HTTPHeader::isMITMAcceptURL(String * url, const char *magic, const char *clientip)
+{
+#ifdef DGDEBUG
+	std::cout << "Testing for GMACCEPT..." << std::endl;
+#endif
+	if ((*url).length() <= 45) {
+#ifdef DGDEBUG
+		std::cout << "too short: " << *url << std::endl;
+#endif
+		return false;  // Too short, can't be an accept URL
+	}
+	if (!(*url).contains("GMACCEPT=")) {
+#ifdef DGDEBUG
+		std::cout << "no tag: " << *url << std::endl;
+#endif
+		return false;
+	}
+#ifdef DGDEBUG
+	std::cout << "URL GMACCEPT found checking..." << std::endl;
+#endif
+
+	String url_left((*url).before("GMACCEPT="));
+	url_left.chop();  // remove the ? or &
+	String url_right((*url).after("GMACCEPT="));
+
+	String url_hash(url_right.subString(0, 32));
+	String url_time(url_right.after(url_hash.toCharArray()));
+#ifdef DGDEBUG
+	std::cout << "URL: " << url_left << ", HASH: " << url_hash << ", TIME: " << url_time << std::endl;
+#endif
+
+	String tohash(clientip + url_time + magic);
+	String hashed(tohash.md5());
+
+#ifdef DGDEBUG
+	std::cout << "checking hash: " << clientip << " " << url_left << " " << url_time << " " << magic << " " << hashed << std::endl;
+#endif
+
+	if (hashed != url_hash) {
+#ifdef DGDEBUG
+		std::cout << "URL GMACCEPT HASH mismatch" << std::endl;
+#endif
+		return false;
+	}
+
+	time_t timen = time(NULL);
+	time_t timeu = url_time.toLong();
+
+	if (timeu < 1) {
+#ifdef DGDEBUG
+		std::cout << "URL GMACCEPT bad time value" << std::endl;
+#endif
+		return 1;  // bad time value
+	}
+	if (timeu < timen) {	// expired key
+#ifdef DGDEBUG
+		std::cout << "URL GMACCEPT expired" << std::endl;
+#endif
+		return 1;  // denotes expired but there
+	}
+#ifdef DGDEBUG
+	std::cout << "URL GMACCEPT not expired" << std::endl;
+#endif
+
+	return true;
+}
+
+bool HTTPHeader::isMITMAcceptCookie(String url, const char *magic, const char *clientip)
+{
+	String cookie(getCookie("GMACCEPT"));
+	if (!cookie.length()) {
+#ifdef DGDEBUG
+		std::cout << "No MITM accept cookie" << std::endl;
+#endif
+		return false;
+	}
+	String cookiehash(cookie.subString(0, 32));
+	String cookietime(cookie.after(cookiehash.toCharArray()));
+	String mymagic(magic);
+	mymagic += clientip;
+	mymagic += cookietime;
+	bool matched = false;
+	while(url.contains(".")) {
+		url = "." + url;
+		String hashed(url.md5(mymagic.toCharArray()));
+		if (hashed == cookiehash) {
+			matched = true;
+			break;
+		}
+		url = url.after(".");
+		url = url.after(".");
+	}
+	if (not matched) {
+#ifdef DGDEBUG
+		std::cout << "Cookie GMACCEPT not match" << std::endl;
+#endif
+		return false;
+	}
+	time_t timen = time(NULL);
+	time_t timeu = cookietime.toLong();
+	if (timeu < timen) {
+#ifdef DGDEBUG
+		std::cout << "Cookie GMACCEPT expired: " << timeu << " " << timen << std::endl;
 #endif
 		return false;
 	}
@@ -1422,12 +1609,28 @@ void HTTPHeader::out(Socket * peersock, Socket * sock, int sendflag, bool reconn
 	if (sendflag == __DGHEADER_SENDALL || sendflag == __DGHEADER_SENDFIRSTLINE) {
 		if (header.size() > 0) {
 			l = header.front() + "\n";
+
 #ifdef DGDEBUG
-			std::cout << "headertoclient:" << l << std::endl;
+			std::cout << "headertoclient was:" << l << std::endl;
+#endif
+
+#ifdef __SSLMITM
+			//if a socket is ssl we want to send relative paths not absolute urls
+			//also HTTP responses dont want to be processed (if we are writing to an ssl client socket then we are doing a request)
+			if (sock->isSsl() && !sock->isSslServer())
+			{
+				//GET http://support.digitalbrain.com/themes/client_default/linerepeat.gif HTTP/1.0
+				//	get the request method		//get the relative path					//everything after that in the header
+				l = header.front().before(" ") + " /" + header.front().after("://").after("/").before(" ") + " HTTP/1.0\r\n";
+			}
+#endif
+
+#ifdef DGDEBUG
+			std::cout << "headertoclient is:" << l << std::endl;
 #endif
 			// first reconnect loop - send first line
 			while (true) {
-				if (!(*sock).writeToSocket(l.toCharArray(), l.length(), 0, timeout)) {
+				if (!sock->writeToSocket(l.toCharArray(), l.length(), 0, timeout)) {
 					// reconnect & try again if we've been told to
 					if (reconnect) {
 						// don't try more than once
@@ -1469,7 +1672,7 @@ void HTTPHeader::out(Socket * peersock, Socket * sock, int sendflag, bool reconn
 		// send header to the output stream
 		// need exception for bad write
 
-		if (!(*sock).writeToSocket(l.toCharArray(), l.length(), 0, timeout)) {
+		if (!sock->writeToSocket(l.toCharArray(), l.length(), 0, timeout)) {
 			// reconnect & try again if we've been told to
 			if (reconnect) {
 				// don't try more than once
@@ -1532,7 +1735,8 @@ void HTTPHeader::discard(Socket *sock, off_t cl)
 
 void HTTPHeader::in(Socket * sock, bool allowpersistent, bool honour_reloadconfig)
 {
-	if (dirty) reset();
+	if (dirty)
+		reset();
 	dirty = true;
 
 	// the RFCs don't specify a max header line length so this should be
@@ -1550,7 +1754,7 @@ void HTTPHeader::in(Socket * sock, bool allowpersistent, bool honour_reloadconfi
 		// - this lets us break when waiting for the next request on a pconn, but not
 		// during receipt of a request in progress.
 		bool truncated = false;
-		(*sock).getLine(buff, 32768, timeout, firsttime ? honour_reloadconfig : false, NULL, &truncated);
+		sock->getLine(buff, 32768, timeout, firsttime ? honour_reloadconfig : false, NULL, &truncated);
 		if (truncated)
 			throw std::exception();
 
@@ -1577,3 +1781,4 @@ void HTTPHeader::in(Socket * sock, bool allowpersistent, bool honour_reloadconfi
 
 	checkheader(allowpersistent);  // sort out a few bits in the header
 }
+

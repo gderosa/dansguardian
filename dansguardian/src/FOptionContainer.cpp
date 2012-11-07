@@ -1,24 +1,9 @@
 // FOptionContainer class - contains the options for a filter group,
 // including the banned/grey/exception site lists and the content/site/url regexp lists
 
-//Please refer to http://dansguardian.org/?page=copyright2
-//for the license for this code.
-//Written by Daniel Barron (daniel@//jadeb/.com).
-//For support go to http://groups.yahoo.com/group/dansguardian
-
-//  This program is free software; you can redistribute it and/or modify
-//  it under the terms of the GNU General Public License as published by
-//  the Free Software Foundation; either version 2 of the License, or
-//  (at your option) any later version.
-//
-//  This program is distributed in the hope that it will be useful,
-//  but WITHOUT ANY WARRANTY; without even the implied warranty of
-//  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-//  GNU General Public License for more details.
-//
-//  You should have received a copy of the GNU General Public License
-//  along with this program; if not, write to the Free Software
-//  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+// For all support, instructions and copyright go to:
+// http://dansguardian.org/
+// Released under the GPL v2, with the OpenSSL exception described in the README file.
 
 
 // INCLUDES
@@ -72,6 +57,14 @@ FOptionContainer::~FOptionContainer()
 }
 
 void FOptionContainer::reset()
+{	
+	conffile.clear();	
+	delete banned_page;
+	banned_page = NULL;
+	resetJustListData();
+}
+
+void FOptionContainer::resetJustListData()
 {
 	if (banned_phrase_flag) o.lm.deRefList(banned_phrase_list);
 	if (searchterm_flag) o.lm.deRefList(searchterm_list);
@@ -127,8 +120,6 @@ void FOptionContainer::reset()
 	
 	banned_phrase_list_index.clear();
 	
-	conffile.clear();
-	
 	content_regexp_list_comp.clear();
 	content_regexp_list_rep.clear();
 	url_regexp_list_comp.clear();
@@ -150,10 +141,9 @@ void FOptionContainer::reset()
 	searchengine_regexp_list_comp.clear();
 	searchengine_regexp_list_source.clear();
 	searchengine_regexp_list_ref.clear();
-	
-	delete banned_page;
-	banned_page = NULL;
 }
+
+
 
 // grab this FG's HTML template
 HTMLTemplate* FOptionContainer::getHTMLTemplate()
@@ -232,11 +222,47 @@ bool FOptionContainer::read(const char *filename)
 			deep_url_analysis = false;
 		}
 
+                // TODO: Implement a "findoptionO" and a version of
+                // reality check which uses off_t, for large file support?
+                max_upload_size = findoptionI("maxuploadsize");
+                if (!realitycheck(max_upload_size, -1, 0, "maxuploadsize")) {
+                        return false;
+                }               // check its a reasonable value
+                max_upload_size *= 1024;
+
 		if (findoptionS("disablecontentscan") == "on") {
 			disable_content_scan = true;
 		} else {
 			disable_content_scan = false;
 		}
+
+
+#ifdef __SSLCERT
+		if (findoptionS("sslcheckcert") == "on") {
+			ssl_check_cert = true;
+		} else {
+			ssl_check_cert = false;
+		}
+#endif //__SSLCERT
+
+#ifdef __SSLMITM
+		if (findoptionS("sslmitm") == "on") {
+			ssl_mitm = true;
+			mitm_magic = findoptionS("mitmkey");
+			if (mitm_magic.length() < 9) {
+				std::string s(16u, ' ');
+				for (int i = 0; i < 16; i++) {
+					s[i] = (rand() % 26) + 'A';
+				}
+				mitm_magic = s;
+			}
+#ifdef DGDEBUG
+			std::cout << "Setting mitm_magic key to '" << mitm_magic << "'" << std::endl;
+#endif
+		} else {
+			ssl_mitm = false;
+		}
+#endif //__SSLMITM
 
 #ifdef ENABLE_EMAIL
 		// Email notification patch by J. Gauthier
@@ -416,6 +442,11 @@ bool FOptionContainer::read(const char *filename)
 			} else {
 				enable_PICS = false;
 			}
+                        if (findoptionS("bannedregexwithblanketblock") == "on") {
+                                enable_regex_grey = true;
+                        } else {
+                                enable_regex_grey = false;
+                        }
 
 			if (findoptionS("blockdownloads") == "on") {
 				block_downloads = true;
@@ -978,6 +1009,7 @@ char *FOptionContainer::inSiteList(String &url, unsigned int list, bool doblanke
 			while (url2.contains(".")) {
 				i = (*o.lm.l[list]).findInList(url2.toCharArray());
 				if (i != NULL) {
+					delete url2s;
 					return i;  // exact match
 				}
 				url2 = url2.after(".");  // check for being in hld
@@ -1061,7 +1093,7 @@ char *FOptionContainer::inURLList(String &url, unsigned int list, bool doblanket
 	std::cout << "inURLList (processed): " << url << std::endl;
 #endif
 	if (reverse_lookups && url.after("/").length() > 0) {
-		String hostname(url.before("/"));
+		String hostname(url.getHostname());
 		if (isIPHostname(hostname)) {
 			std::deque<String > *url2s = ipToHostname(hostname.toCharArray());
 			String url2;
@@ -1077,11 +1109,13 @@ char *FOptionContainer::inURLList(String &url, unsigned int list, bool doblanket
 						if (url2.length() > fl) {
 							unsigned char c = url[fl];
 							if (c == '/' || c == '?' || c == '&' || c == '=') {
+								delete url2s;
 								return i;  // matches /blah/ or /blah/foo
 								// (or /blah?foo etc.)
 								// but not /blahfoo
 							}
 						} else {
+							delete url2s;
 							return i;  // exact match
 						}
 					}

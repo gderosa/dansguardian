@@ -1,21 +1,8 @@
 // SocketArray - wrapper for clean handling of an array of Sockets
 
-//Please refer to http://dansguardian.org/?page=copyright2
-//for the license for this code.
-
-//  This program is free software; you can redistribute it and/or modify
-//  it under the terms of the GNU General Public License as published by
-//  the Free Software Foundation; either version 2 of the License, or
-//  (at your option) any later version.
-//
-//  This program is distributed in the hope that it will be useful,
-//  but WITHOUT ANY WARRANTY; without even the implied warranty of
-//  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-//  GNU General Public License for more details.
-//
-//  You should have received a copy of the GNU General Public License
-//  along with this program; if not, write to the Free Software
-//  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+// For all support, instructions and copyright go to:
+// http://dansguardian.org/
+// Released under the GPL v2, with the OpenSSL exception described in the README file.
 
 
 // INCLUDES
@@ -25,6 +12,7 @@
 #endif
 #include "SocketArray.hpp"
 
+#include <string.h>
 #include <syslog.h>
 #include <cerrno>
 
@@ -95,23 +83,24 @@ int SocketArray::listenAll(int queue)
 }
 
 // bind all sockets to given IP list
-int SocketArray::bindAll(std::deque<String> &ips, int port)
+int SocketArray::bindAll(std::deque<String> &ips, std::deque<String> &ports)
 {
 	if (ips.size() > socknum) {
 		return -1;
 	}
 	for (unsigned int i = 0; i < socknum; i++) {
 #ifdef DGDEBUG
-		std::cerr << "Binding server socket[" << port << " " << ips[i] << " " << i << "])" << std::endl;
+		std::cerr << "Binding server socket[" << ports[i] << " " << ips[i] << " " << i << "])" << std::endl;
 #endif
-		if (drawer[i].bind(ips[i].toCharArray(), port)) {
+		if (drawer[i].bind(ips[i].toCharArray(), ports[i].toInteger())) {
 			if (!is_daemonised) {
 				std::cerr << "Error binding server socket: ["
-					<< port << " " << ips[i] << " " << i << "] (" << strerror(errno) << ")" << std::endl;
+					<< ports[i] << " " << ips[i] << " " << i << "] (" << ErrStr() << ")" << std::endl;
 			}
-			syslog(LOG_ERR, "Error binding socket: [%d %s %d] (%s)", port, ips[i].toCharArray(), i, strerror(errno));
+			syslog(LOG_ERR, "Error binding socket: [%s %s %d] (%s)", ports[i].toCharArray(), ips[i].toCharArray(), i, ErrStr().c_str());
 			return -1;
 		}
 	}
 	return 0;
 }
+
