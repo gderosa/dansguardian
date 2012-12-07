@@ -6,4 +6,7 @@ dgconfig.h.in
 install-sh
 Makefile.in
 configure
-.svn
+*.svn
+*.guess
+*.dh-orig
+*.o
