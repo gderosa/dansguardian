@@ -1,1 +1,9 @@
+aclocal.m4
+autom4te.cache
+config.sub
+depcomp
+dgconfig.h.in
+install-sh
+Makefile.in
+configure
 .svn
