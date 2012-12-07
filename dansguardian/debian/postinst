@@ -20,6 +20,36 @@ set -e
 
 case "$1" in
     configure)
+	# borrowed from official package
+
+	if ! id -u dansguardian > /dev/null 2>&1 ; then
+	    adduser --system --group \
+		--disabled-login \
+		--gecos "DansGuardian User" \
+		--home /var/log/dansguardian \
+		--shell /bin/sh \
+		dansguardian
+	fi
+
+	dguser=`grep daemonuser /etc/dansguardian/dansguardian.conf|grep -v '^\ *#' \
+		|awk -F = '{print $2}'|tr -d \ \'`
+
+	dggroup=`grep daemongroup /etc/dansguardian/dansguardian.conf|grep -v '^\ *#' \
+		|awk -F = '{print $2}'|tr -d \ \'`
+
+	logdir=`grep loglocation /etc/dansguardian/dansguardian.conf|grep -v '^\ *#' \
+		|awk -F = '{print $2}'|tr -d \ \'|xargs -r dirname 2>/dev/null`
+
+	echo "$logdir"
+	test -z "$dguser" && dguser=dansguardian
+	test -z "$dggroup" && dggroup=dansguardian
+	test -z "$logdir" && logdir=/var/log/dansguardian
+
+	chown -R $dguser:$dggroup $logdir
+	chmod -R u+wr $logdir
+	chmod u+wrx $logdir
+
+
     ;;
 
     abort-upgrade|abort-remove|abort-deconfigure)
@@ -37,3 +67,5 @@ esac
 #DEBHELPER#
 
 exit 0
+
+
