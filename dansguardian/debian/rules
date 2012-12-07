@@ -13,4 +13,4 @@
 	dh $@  --with autotools-dev
 
 override_dh_auto_configure:
-	dh_auto_configure -- --enable-soci --enable-sqlauth
+	dh_auto_configure -- --enable-soci --enable-sqlauth --enable-clamd
