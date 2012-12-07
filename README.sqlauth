@@ -44,6 +44,9 @@ In case it complains about missing .orig file, issue something like:
 
   dh_make -p dansguardian_2.12.0.4+sqlauth -createorig
 
+The Debian package was created mainly from scratch, but thanks to the official 
+Debian maintainer for lots of inspiration.
+
 -- 
 [1] http://dansguardian.org/
 [2] http://soci.sourceforge.net/
