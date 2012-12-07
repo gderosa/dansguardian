@@ -31,8 +31,18 @@ This project is in its very early stage of development.
 
 SCM policy: only upstream Subversion trunk[3] is (manually) imported into
 git master. git-svn has not been used for a number of reasons... Other git
-branches will contain original contributions. Patches will be formatted
-and sent to the upstream authors.
+branches (mainly: sqlauth) will contain original contributions. 
+
+===
+
+To debianize:
+
+  ./autogen.sh
+  dpkg-buildpackage
+
+In case it complains about missing .orig file, issue something like:
+
+  dh_make -p dansguardian_2.12.0.4+sqlauth -createorig
 
 -- 
 [1] http://dansguardian.org/
