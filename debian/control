@@ -1,15 +1,35 @@
 Source: dansguardian
-Section: unknown
-Priority: extra
+Section: web
+Priority: optional
 Maintainer: Guido De Rosa <guido.derosa@vemarsas.it>
 Build-Depends: debhelper (>= 8.0.0), autotools-dev,
 Standards-Version: 3.9.3
-Homepage: <insert the upstream URL, if relevant>
-#Vcs-Git: git://git.debian.org/collab-maint/dansguardian.git
-#Vcs-Browser: http://git.debian.org/?p=collab-maint/dansguardian.git;a=summary
+Homepage: http://dev.vemarsas.it/projects/dansguardian
+Vcs-Git: git://github.com/gderosa/dansguardian.git
+Vcs-Browser: https://github.com/gderosa/dansguardian
 
 Package: dansguardian
 Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends}
-Description: <insert up to 60 chars description>
- <insert long description, indented with spaces>
+Description: Web content filtering (SQLAuth fork/HotSpot integration)
+ DansGuardian filters the content of pages based on many methods
+ including phrase matching, PICS filtering and URL filtering. It does
+ not purely filter based on a banned list of sites.
+ .
+ It provides real-time virus scanning capabilities for content access.
+ .
+ DansGuardian is designed to be completely flexible and allows you to tailor
+ the filtering to your exact needs. It can be as draconian or as
+ unobstructive as you want. The default settings are geared towards what a
+ primary school might want but DansGuardian puts you in control of what you
+ want to block.
+ .
+ DansGuardian requires squid or another similar caching proxy server
+ on your local network.
+ .
+ This is a fork of DansGuardian featuring SQL based authentication, 
+ useful to differentiate filtering rules according to RADIUS authentication
+ (by creating a map from RADIUS group to filtergroups). Since DG only knows
+ user IP address when working in trasparent mode, it queries the accounting db
+ to get any other information.
+
