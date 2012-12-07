@@ -1,0 +1,5 @@
+dansguardian (2.12.0.4+sqlauth-1) unstable; urgency=low
+
+  * Initial release (Closes: #nnnn)  <nnnn is the bug number of your ITP>
+
+ -- Guido De Rosa <guido.derosa@vemarsas.it>  Fri, 07 Dec 2012 01:06:41 +0100
