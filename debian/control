@@ -2,7 +2,7 @@ Source: dansguardian
 Section: web
 Priority: optional
 Maintainer: Guido De Rosa <guido.derosa@vemarsas.it>
-Build-Depends: debhelper (>= 8.0.0), autotools-dev, pkg-config
+Build-Depends: debhelper (>= 8.0.0), autotools-dev, pkg-config, libpcre3-dev
 Standards-Version: 3.9.3
 Homepage: http://dev.vemarsas.it/projects/dansguardian
 Vcs-Git: git://github.com/gderosa/dansguardian.git
