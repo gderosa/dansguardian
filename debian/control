@@ -11,6 +11,7 @@ Vcs-Browser: https://github.com/gderosa/dansguardian
 Package: dansguardian
 Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends}
+Recommends: clamav-daemon
 Description: Web content filtering (SQLAuth fork/HotSpot integration)
  DansGuardian filters the content of pages based on many methods
  including phrase matching, PICS filtering and URL filtering. It does
